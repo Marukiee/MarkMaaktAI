@@ -86,6 +86,16 @@ Dit is waar de app op beoordeeld wordt. Nooit op afknijpen.
   bestandsnaam (`ekv1280`). Meer tokens vragen dan dat faalt bij het laden met
   "Max number of tokens is larger than the maximum cache size". `maxTokens` altijd
   klemmen op die waarde.
+- **Signing:** release-sleutel staat op `/home/Mark/keystores/markmaaktai-release.jks`,
+  wachtwoord in `markmaaktai-release.password` ernaast, en dezelfde vier waarden staan
+  als GitHub-secrets (`ANDROID_KEYSTORE_B64`, `ANDROID_KEYSTORE_PASSWORD`,
+  `ANDROID_KEY_ALIAS`, `ANDROID_KEY_PASSWORD`). Fingerprint SHA-256 begint met
+  `DB:48:30:2D`. **Die sleutel nooit kwijtraken**, zonder dat kan de app nooit meer
+  bijgewerkt worden en moet iedereen opnieuw installeren. Zonder de secrets valt CI
+  terug op de debug-sleutel van de runner, die per run verschilt, en dan moet je bij
+  elke update eerst verwijderen.
+- Verwijderen wist `filesDir`, dus ook het gedownloade model. Daarom is bijwerken
+  zonder verwijderen geen luxe maar de kern.
 - Repo is **publiek**. Moet ook, anders geeft de GitHub API 404 en werkt de
   update-check in de app niet zonder token.
 - CI bouwt bij elke push naar main, publiceert alleen een release bij een `v*`-tag.
