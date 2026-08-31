@@ -42,6 +42,8 @@ class AssistFallbackActivity : ComponentActivity() {
                 themeMode = settings.themeMode,
                 dynamicColor = settings.dynamicColor,
                 pureBlack = settings.pureBlack,
+                paletteStyle = settings.paletteStyle,
+                colourSeed = settings.colourSeed,
                 applySystemBarStyle = false,
             ) {
                 AssistOverlay(

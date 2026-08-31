@@ -233,4 +233,24 @@
     <string name="onboarding_no_account">No account and no sign in. The download starts straight away.</string>
     <string name="onboarding_works_without">Photos and screenshots are read without any model at all, so you can skip this and come back later.</string>
     <string name="chat_phone_context">Use my phone</string>
+    <!-- Redesign additions -->
+    <string name="chat_history">Conversations</string>
+    <string name="chat_history_empty">Nothing here yet. Ask something and it will show up.</string>
+    <string name="settings_section_access">Permissions</string>
+    <string name="settings_colour_source">Accent colour</string>
+    <string name="settings_colour_wallpaper">From wallpaper</string>
+    <string name="settings_palette_style">Palette style</string>
+    <string name="settings_brave_key_hint">Paste your key</string>
+    <string name="settings_notification_enabled">Summarise notifications</string>
+    <string name="settings_notification_enabled_desc">Turn a burst of messages into one summary</string>
+    <string name="settings_urgent_alerts">Alert on urgent</string>
+    <string name="settings_urgent_alerts_desc">Let something the model marked urgent make a sound</string>
+    <string name="palette_tonal_spot">Tonal</string>
+    <string name="palette_vibrant">Vibrant</string>
+    <string name="palette_expressive">Expressive</string>
+    <string name="palette_fruit_salad">Fruit salad</string>
+    <string name="palette_fidelity">Faithful</string>
+    <string name="palette_monochrome">Mono</string>
+    <string name="onboarding_model_ready">Model ready</string>
+    <string name="onboarding_download_continues">Carry on, the download keeps running in the background.</string>
 </resources>

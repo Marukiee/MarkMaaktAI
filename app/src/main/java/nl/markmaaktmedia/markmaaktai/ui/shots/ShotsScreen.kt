@@ -27,12 +27,6 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.BasicTextField
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.Close
-import androidx.compose.material.icons.rounded.Refresh
-import androidx.compose.material.icons.rounded.Search
-import androidx.compose.material.icons.rounded.Star
-import androidx.compose.material.icons.rounded.StarOutline
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -58,6 +52,7 @@ import nl.markmaaktmedia.markmaaktai.ui.components.PillBadge
 import nl.markmaaktmedia.markmaaktai.ui.components.PillSpinner
 import nl.markmaaktmedia.markmaaktai.ui.components.VSpace
 import nl.markmaaktmedia.markmaaktai.ui.components.bouncyClickable
+import nl.markmaaktmedia.markmaaktai.ui.theme.MarkIcons
 import nl.markmaaktmedia.markmaaktai.ui.theme.CardSquircle
 import nl.markmaaktmedia.markmaaktai.ui.theme.MarkMotion
 import nl.markmaaktmedia.markmaaktai.ui.theme.ChipSquircle
@@ -80,6 +75,10 @@ fun ShotsScreen(
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val shots by viewModel.shots.collectAsStateWithLifecycle()
     val context = LocalContext.current
+
+    androidx.compose.runtime.DisposableEffect(Unit) {
+        onDispose { viewModel.clearSearch() }
+    }
 
     val permissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestMultiplePermissions(),
@@ -110,7 +109,7 @@ fun ShotsScreen(
                         PillSpinner(size = 18.dp)
                     } else {
                         Icon(
-                            imageVector = Icons.Rounded.Refresh,
+                            painter = MarkIcons.Refresh,
                             contentDescription = stringResource(R.string.shots_rescan),
                             tint = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.size(19.dp),
@@ -224,7 +223,7 @@ private fun SearchField(
         horizontalArrangement = Arrangement.spacedBy(10.dp),
     ) {
         Icon(
-            imageVector = Icons.Rounded.Search,
+            painter = MarkIcons.Search,
             contentDescription = null,
             tint = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.size(18.dp),
@@ -250,7 +249,7 @@ private fun SearchField(
         }
         AnimatedVisibility(visible = query.isNotEmpty()) {
             Icon(
-                imageVector = Icons.Rounded.Close,
+                painter = MarkIcons.Close,
                 contentDescription = stringResource(R.string.generic_close),
                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier
@@ -323,7 +322,7 @@ private fun ShotTile(shot: ScreenshotEntity, onClick: () -> Unit) {
             )
             if (shot.isFavourite) {
                 Icon(
-                    imageVector = Icons.Rounded.Star,
+                    painter = MarkIcons.StarFilled,
                     contentDescription = null,
                     tint = Color.White,
                     modifier = Modifier
@@ -400,7 +399,7 @@ private fun ShotDetail(
                     modifier = Modifier.bouncyClickable(onClick = onOpenInGallery),
                 )
                 Icon(
-                    imageVector = if (shot.isFavourite) Icons.Rounded.Star else Icons.Rounded.StarOutline,
+                    painter = if (shot.isFavourite) MarkIcons.StarFilled else MarkIcons.Star,
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.primary,
                     modifier = Modifier

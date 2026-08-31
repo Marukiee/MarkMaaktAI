@@ -12,7 +12,6 @@ import androidx.compose.animation.scaleOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -22,16 +21,8 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.text.BasicTextField
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.AddPhotoAlternate
-import androidx.compose.material.icons.rounded.ArrowUpward
-import androidx.compose.material.icons.rounded.Close
-import androidx.compose.material.icons.rounded.Mic
-import androidx.compose.material.icons.rounded.PhoneAndroid
-import androidx.compose.material.icons.rounded.Public
-import androidx.compose.material.icons.rounded.Stop
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Icon
-import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -40,17 +31,20 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.graphics.painter.Painter
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import nl.markmaaktmedia.markmaaktai.R
+import nl.markmaaktmedia.markmaaktai.ui.components.MarkIconButton
 import nl.markmaaktmedia.markmaaktai.ui.components.PillSpinner
 import nl.markmaaktmedia.markmaaktai.ui.components.ambientGlowBehind
 import nl.markmaaktmedia.markmaaktai.ui.components.bouncyClickable
-import nl.markmaaktmedia.markmaaktai.ui.theme.ChipSquircle
+import nl.markmaaktmedia.markmaaktai.ui.theme.MarkIcons
 import nl.markmaaktmedia.markmaaktai.ui.theme.MarkMotion
 import nl.markmaaktmedia.markmaaktai.ui.theme.PillShape
 import nl.markmaaktmedia.markmaaktai.ui.theme.SquircleShape
@@ -58,10 +52,13 @@ import nl.markmaaktmedia.markmaaktai.ui.theme.SquircleShape
 /**
  * The input bar.
  *
- * The glow behind it is the app's one piece of ambient motion, and it is tied to real
- * work: it appears while the model is running and is completely still otherwise. An
- * animation that plays all the time stops carrying information, so this one only ever
- * means "something is happening".
+ * Everything in the row is centred on the same axis: each control sits in an
+ * identical 44dp box and the text sits in a box of the same height, so a single line
+ * of text lines up with the icons beside it instead of riding low. The field only
+ * starts growing once there is more than one line to show.
+ *
+ * The glow behind the bar is the app's one piece of ambient motion, and it is tied to
+ * real work: it appears while the model is running and is completely still otherwise.
  */
 @Composable
 fun ChatComposer(
@@ -89,7 +86,7 @@ fun ChatComposer(
                 ),
             )
             .padding(horizontal = 12.dp, vertical = 8.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
         AnimatedVisibility(
             visible = state.attachmentPath != null,
@@ -107,13 +104,13 @@ fun ChatComposer(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             ComposerToggle(
-                icon = Icons.Rounded.Public,
+                icon = MarkIcons.Web,
                 label = stringResource(R.string.chat_web_search),
                 active = state.webSearchEnabled,
                 onClick = onToggleWebSearch,
             )
             ComposerToggle(
-                icon = Icons.Rounded.PhoneAndroid,
+                icon = MarkIcons.Phone,
                 label = stringResource(R.string.chat_phone_context),
                 active = state.phoneContextEnabled,
                 onClick = onTogglePhoneContext,
@@ -125,21 +122,12 @@ fun ChatComposer(
                 .fillMaxWidth()
                 .clip(SquircleShape(30.dp))
                 .background(MaterialTheme.colorScheme.surfaceContainerHigh)
-                .border(
-                    width = 1.dp,
-                    color = if (state.isGenerating) {
-                        MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)
-                    } else {
-                        MaterialTheme.colorScheme.outlineVariant
-                    },
-                    shape = SquircleShape(30.dp),
-                )
                 .padding(start = 6.dp, end = 6.dp, top = 6.dp, bottom = 6.dp),
-            verticalAlignment = Alignment.Bottom,
-            horizontalArrangement = Arrangement.spacedBy(4.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(2.dp),
         ) {
-            ComposerIconButton(
-                icon = Icons.Rounded.AddPhotoAlternate,
+            MarkIconButton(
+                icon = MarkIcons.AddPhoto,
                 contentDescription = stringResource(R.string.chat_attach_photo),
                 onClick = onAttach,
             )
@@ -147,7 +135,9 @@ fun ChatComposer(
             Box(
                 modifier = Modifier
                     .weight(1f)
-                    .padding(vertical = 12.dp),
+                    .heightIn(min = 44.dp)
+                    .padding(horizontal = 4.dp),
+                contentAlignment = Alignment.CenterStart,
             ) {
                 if (state.input.isEmpty() && state.partialSpeech.isEmpty()) {
                     Text(
@@ -165,28 +155,27 @@ fun ChatComposer(
                     onValueChange = onInputChange,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .heightIn(max = 160.dp),
-                    textStyle = LocalTextStyle.current.merge(
-                        MaterialTheme.typography.bodyLarge.copy(
-                            color = MaterialTheme.colorScheme.onSurface,
-                        )
+                        .heightIn(max = 150.dp),
+                    textStyle = MaterialTheme.typography.bodyLarge.copy(
+                        color = MaterialTheme.colorScheme.onSurface,
                     ),
-                    cursorBrush = androidx.compose.ui.graphics.SolidColor(
-                        MaterialTheme.colorScheme.primary
-                    ),
-                    keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
-                        imeAction = ImeAction.Default,
-                    ),
+                    cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Default),
                     enabled = !state.isListening,
                 )
             }
 
-            ComposerIconButton(
-                icon = Icons.Rounded.Mic,
+            MarkIconButton(
+                icon = MarkIcons.Mic,
                 contentDescription = stringResource(R.string.chat_voice_input),
                 onClick = onDictate,
                 tint = if (state.isListening) MaterialTheme.colorScheme.primary
                 else MaterialTheme.colorScheme.onSurfaceVariant,
+                background = if (state.isListening) {
+                    MaterialTheme.colorScheme.primary.copy(alpha = 0.14f)
+                } else {
+                    Color.Transparent
+                },
             )
 
             SendButton(
@@ -202,9 +191,9 @@ fun ChatComposer(
 /**
  * One button that is both send and stop.
  *
- * Two buttons that swap places would move the target out from under a thumb that is
- * already on its way down. This one stays put and changes what it is, with the icon
- * cross fading and the colour following the state.
+ * Two buttons that swap places would move the target out from under a thumb already
+ * on its way down. This one stays put and changes what it is, with the icon cross
+ * fading and the colour following the state.
  */
 @Composable
 private fun SendButton(
@@ -233,7 +222,7 @@ private fun SendButton(
         label = "sendContent",
     )
     val scale by animateFloatAsState(
-        targetValue = if (active) 1f else 0.9f,
+        targetValue = if (active) 1f else 0.88f,
         animationSpec = MarkMotion.springy(),
         label = "sendScale",
     )
@@ -259,7 +248,7 @@ private fun SendButton(
             label = "sendIcon",
         ) { isGenerating ->
             Icon(
-                imageVector = if (isGenerating) Icons.Rounded.Stop else Icons.Rounded.ArrowUpward,
+                painter = if (isGenerating) MarkIcons.Stop else MarkIcons.Send,
                 contentDescription = stringResource(
                     if (isGenerating) R.string.chat_stop else R.string.chat_send
                 ),
@@ -270,45 +259,22 @@ private fun SendButton(
     }
 }
 
-@Composable
-private fun ComposerIconButton(
-    icon: ImageVector,
-    contentDescription: String,
-    onClick: () -> Unit,
-    tint: Color = MaterialTheme.colorScheme.onSurfaceVariant,
-) {
-    Box(
-        modifier = Modifier
-            .size(44.dp)
-            .clip(PillShape)
-            .bouncyClickable(onClick = onClick),
-        contentAlignment = Alignment.Center,
-    ) {
-        Icon(
-            imageVector = icon,
-            contentDescription = contentDescription,
-            tint = tint,
-            modifier = Modifier.size(21.dp),
-        )
-    }
-}
-
 /** A small switch that says what it does rather than being an unlabelled icon. */
 @Composable
 private fun ComposerToggle(
-    icon: ImageVector,
+    icon: Painter,
     label: String,
     active: Boolean,
     onClick: () -> Unit,
 ) {
     val container by animateColorAsState(
-        targetValue = if (active) MaterialTheme.colorScheme.primaryContainer
+        targetValue = if (active) MaterialTheme.colorScheme.secondaryContainer
         else MaterialTheme.colorScheme.surfaceContainerHigh,
         animationSpec = MarkMotion.colourSpec(),
         label = "toggleContainer",
     )
     val content by animateColorAsState(
-        targetValue = if (active) MaterialTheme.colorScheme.onPrimaryContainer
+        targetValue = if (active) MaterialTheme.colorScheme.onSecondaryContainer
         else MaterialTheme.colorScheme.onSurfaceVariant,
         animationSpec = MarkMotion.colourSpec(),
         label = "toggleContent",
@@ -316,15 +282,15 @@ private fun ComposerToggle(
 
     Row(
         modifier = Modifier
-            .clip(ChipSquircle)
+            .clip(PillShape)
             .background(container)
             .bouncyClickable(onClick = onClick)
-            .padding(horizontal = 12.dp, vertical = 7.dp),
+            .padding(horizontal = 14.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(6.dp),
+        horizontalArrangement = Arrangement.spacedBy(7.dp),
     ) {
         Icon(
-            imageVector = icon,
+            painter = icon,
             contentDescription = null,
             tint = content,
             modifier = Modifier.size(15.dp),
@@ -342,32 +308,27 @@ private fun AttachmentPreview(path: String, onRemove: () -> Unit) {
     Box(
         modifier = Modifier
             .size(88.dp)
-            .clip(SquircleShape(20.dp))
+            .clip(SquircleShape(22.dp))
             .background(MaterialTheme.colorScheme.surfaceContainerHigh),
     ) {
         AsyncImage(
             model = path,
             contentDescription = null,
             modifier = Modifier.size(88.dp),
-            contentScale = androidx.compose.ui.layout.ContentScale.Crop,
+            contentScale = ContentScale.Crop,
         )
-        Box(
+        MarkIconButton(
+            icon = MarkIcons.Close,
+            contentDescription = stringResource(R.string.chat_remove_attachment),
+            onClick = onRemove,
             modifier = Modifier
                 .align(Alignment.TopEnd)
-                .padding(4.dp)
-                .size(24.dp)
-                .clip(PillShape)
-                .background(MaterialTheme.colorScheme.scrim.copy(alpha = 0.6f))
-                .bouncyClickable(onClick = onRemove),
-            contentAlignment = Alignment.Center,
-        ) {
-            Icon(
-                imageVector = Icons.Rounded.Close,
-                contentDescription = stringResource(R.string.chat_remove_attachment),
-                tint = Color.White,
-                modifier = Modifier.size(14.dp),
-            )
-        }
+                .padding(4.dp),
+            size = 26,
+            iconSize = 14,
+            tint = Color.White,
+            background = Color.Black.copy(alpha = 0.55f),
+        )
     }
 }
 
@@ -390,7 +351,7 @@ fun WorkStatusLine(state: ChatUiState, modifier: Modifier = Modifier) {
         modifier = modifier,
     ) {
         Row(
-            modifier = Modifier.padding(horizontal = 20.dp, vertical = 6.dp),
+            modifier = Modifier.padding(horizontal = 22.dp, vertical = 6.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(10.dp),
         ) {

@@ -35,6 +35,12 @@ class AssistViewModel @Inject constructor(
     private var answerJob: Job? = null
     private var dictationJob: Job? = null
 
+    init {
+        // Same reason as the voice session: the sheet is opened to say something, so
+        // it starts listening rather than waiting to be told to.
+        if (speechInput.hasMicrophonePermission()) toggleDictation()
+    }
+
     fun onQueryChange(value: String) {
         _state.update { it.copy(query = value, error = null) }
     }

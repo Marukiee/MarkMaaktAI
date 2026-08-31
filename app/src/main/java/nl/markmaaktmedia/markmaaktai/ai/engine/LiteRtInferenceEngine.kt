@@ -68,7 +68,7 @@ class LiteRtInferenceEngine(
                 closeHandle()
                 val options = LlmInference.LlmInferenceOptions.builder()
                     .setModelPath(modelPath)
-                    .setMaxTokens(params.maxTokens + PROMPT_TOKEN_BUDGET)
+                    .setMaxTokens(totalTokenBudget(file.name, params.maxTokens))
                     .setPreferredBackend(
                         if (params.useGpu) LlmInference.Backend.GPU else LlmInference.Backend.CPU
                     )
@@ -149,6 +149,24 @@ class LiteRtInferenceEngine(
         }
     }
 
+    /**
+     * How many tokens the graph may be built for.
+     *
+     * A .task file is exported with a fixed KV cache, and asking for more than it was
+     * built for fails at load with "Max number of tokens is larger than the maximum
+     * cache size supported". The size is in the file name as `ekv1280` or `ekv4096`,
+     * which is the only place it is readable without opening the model, so that is
+     * where it is read from. Anything unrecognised falls back to the smallest cache
+     * in the catalogue, because guessing low costs a shorter answer and guessing high
+     * costs the whole session.
+     */
+    private fun totalTokenBudget(fileName: String, requestedAnswerTokens: Int): Int {
+        val cacheSize = KV_CACHE_PATTERN.find(fileName)?.groupValues?.get(1)?.toIntOrNull()
+            ?: DEFAULT_KV_CACHE
+        val wanted = requestedAnswerTokens + PROMPT_TOKEN_BUDGET
+        return wanted.coerceAtMost(cacheSize)
+    }
+
     private fun closeHandle() {
         runCatching { inference?.close() }
             .onFailure { Log.w(TAG, "Closing the model handle failed", it) }
@@ -161,7 +179,13 @@ class LiteRtInferenceEngine(
         const val TAG = "LiteRtEngine"
 
         /** Head room on top of the answer budget so a long prompt still fits. */
-        const val PROMPT_TOKEN_BUDGET = 1536
+        const val PROMPT_TOKEN_BUDGET = 512
+
+        /** Matches the `ekv1280` marker every LiteRT export carries in its name. */
+        val KV_CACHE_PATTERN = Regex("ekv(\\d+)", RegexOption.IGNORE_CASE)
+
+        /** The smallest cache anything in the catalogue was exported with. */
+        const val DEFAULT_KV_CACHE = 1280
 
         const val MAX_IMAGES = 1
     }

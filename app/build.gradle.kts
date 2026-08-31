@@ -28,8 +28,8 @@ android {
         applicationId = "nl.markmaaktmedia.markmaaktai"
         minSdk = 31
         targetSdk = 36
-        versionCode = 1
-        versionName = "1.0.0"
+        versionCode = 2
+        versionName = "1.1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables.useSupportLibrary = true
@@ -129,6 +129,9 @@ ksp {
 dependencies {
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.appcompat)
+    // Only for com.google.android.material.color.utilities, which is where the
+    // Material You scheme generators live. No Material Components views are used.
+    implementation(libs.google.material)
     implementation(libs.androidx.exifinterface)
     implementation(libs.androidx.savedstate.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
@@ -147,7 +150,6 @@ dependencies {
     implementation(libs.androidx.foundation)
     implementation(libs.androidx.animation)
     implementation(libs.androidx.material3)
-    implementation(libs.androidx.material.icons.extended)
     debugImplementation(libs.androidx.ui.tooling)
 
     implementation(libs.androidx.datastore.preferences)

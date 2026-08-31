@@ -11,6 +11,6 @@
         android:rotation="-45">
         <path
             android:fillColor="#FFFFFFFF"
-            android:pathData="M36,41 L72,41 A13,13 0 0 1 72,67 L36,67 A13,13 0 0 1 36,41 Z" />
+            android:pathData="M43,46 L65,46 A8,8 0 0 1 65,62 L43,62 A8,8 0 0 1 43,46 Z" />
     </group>
 </vector>

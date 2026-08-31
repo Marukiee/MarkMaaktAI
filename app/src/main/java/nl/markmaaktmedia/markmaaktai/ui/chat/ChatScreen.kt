@@ -1,19 +1,17 @@
 package nl.markmaaktmedia.markmaaktai.ui.chat
 
+import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
@@ -21,17 +19,11 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.AddComment
-import androidx.compose.material.icons.rounded.History
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.Snackbar
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
@@ -45,19 +37,24 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import nl.markmaaktmedia.markmaaktai.R
+import nl.markmaaktmedia.markmaaktai.data.db.ConversationEntity
 import nl.markmaaktmedia.markmaaktai.ui.components.EmptyState
+import nl.markmaaktmedia.markmaaktai.ui.components.MarkErrorDialog
+import nl.markmaaktmedia.markmaaktai.ui.components.MarkIconButton
 import nl.markmaaktmedia.markmaaktai.ui.components.PillMark
+import nl.markmaaktmedia.markmaaktai.ui.components.PrimaryPillButton
 import nl.markmaaktmedia.markmaaktai.ui.components.SuggestionChip
 import nl.markmaaktmedia.markmaaktai.ui.components.SwipeToDelete
 import nl.markmaaktmedia.markmaaktai.ui.components.VSpace
 import nl.markmaaktmedia.markmaaktai.ui.components.bouncyClickable
 import nl.markmaaktmedia.markmaaktai.ui.theme.CardSquircle
-import nl.markmaaktmedia.markmaaktai.ui.theme.PillShape
+import nl.markmaaktmedia.markmaaktai.ui.theme.MarkIcons
 import nl.markmaaktmedia.markmaaktai.ui.theme.SheetSquircle
 
 @Composable
@@ -78,8 +75,8 @@ fun ChatScreen(
         contract = ActivityResultContracts.PickVisualMedia(),
     ) { uri: Uri? -> uri?.let(viewModel::onAttachmentPicked) }
 
-    // Follow the answer as it streams, but only while the user is already at the
-    // bottom. Yanking the view down while someone is reading further up is rude.
+    // Follow the answer as it streams, but only while the user is already near the
+    // bottom. Yanking the view down while someone reads further up is rude.
     LaunchedEffect(messages.size, state.isGenerating) {
         if (messages.isNotEmpty() && listState.firstVisibleItemIndex >= messages.size - 3) {
             listState.animateScrollToItem(messages.lastIndex.coerceAtLeast(0))
@@ -90,8 +87,8 @@ fun ChatScreen(
         ChatTopBar(
             title = conversations.firstOrNull { it.id == state.conversationId }?.title
                 ?: stringResource(R.string.chat_title),
-            onNewConversation = viewModel::newConversation,
             onOpenHistory = { historyOpen = true },
+            onNewConversation = viewModel::newConversation,
         )
 
         Box(modifier = Modifier.weight(1f)) {
@@ -105,10 +102,7 @@ fun ChatScreen(
                 LazyColumn(
                     state = listState,
                     modifier = Modifier.fillMaxSize(),
-                    contentPadding = androidx.compose.foundation.layout.PaddingValues(
-                        top = 8.dp,
-                        bottom = 16.dp,
-                    ),
+                    contentPadding = PaddingValues(top = 8.dp, bottom = 16.dp),
                 ) {
                     items(messages, key = { it.id }) { message ->
                         MessageBubble(
@@ -117,28 +111,6 @@ fun ChatScreen(
                             onOpenSource = { url -> openUrl(context, url) },
                         )
                     }
-                }
-            }
-
-            androidx.compose.animation.AnimatedVisibility(
-                visible = state.error != null,
-                enter = slideInVertically { it } + fadeIn(),
-                exit = fadeOut(),
-                modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .padding(16.dp),
-            ) {
-                Snackbar(
-                    shape = CardSquircle,
-                    action = {
-                        Text(
-                            text = stringResource(R.string.generic_close),
-                            modifier = Modifier.bouncyClickable { viewModel.dismissError() },
-                            color = MaterialTheme.colorScheme.inversePrimary,
-                        )
-                    },
-                ) {
-                    Text(state.error.orEmpty())
                 }
             }
         }
@@ -163,7 +135,20 @@ fun ChatScreen(
                 .imePadding()
                 .navigationBarsPadding()
                 // Clears the floating navigation bar, which is drawn over this screen.
-                .padding(bottom = 74.dp),
+                .padding(bottom = 76.dp),
+        )
+    }
+
+    // Failures are a popup, not a red paragraph in the transcript. A stack trace typed
+    // out as if the assistant had said it is both unreadable and untrue.
+    state.error?.let { message ->
+        MarkErrorDialog(
+            title = stringResource(R.string.generic_error),
+            message = message,
+            onDismiss = viewModel::dismissError,
+            confirmLabel = stringResource(R.string.generic_close),
+            retryLabel = stringResource(R.string.generic_retry).takeIf { state.lastQuestion.isNotBlank() },
+            onRetry = { viewModel.retryLast() }.takeIf { state.lastQuestion.isNotBlank() },
         )
     }
 
@@ -181,60 +166,48 @@ fun ChatScreen(
     }
 }
 
+/**
+ * History on the left, new chat on the right.
+ *
+ * The overflow dot column is where a phone user reaches for "the things I made
+ * before", and putting it opposite the button that throws the current thread away
+ * keeps those two apart. They were next to each other before, which is asking for a
+ * mis-tap that loses what you were reading.
+ */
 @Composable
 private fun ChatTopBar(
     title: String,
-    onNewConversation: () -> Unit,
     onOpenHistory: () -> Unit,
+    onNewConversation: () -> Unit,
 ) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 12.dp, vertical = 8.dp),
+            .padding(horizontal = 8.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(10.dp),
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
     ) {
-        PillMark(size = 26.dp)
+        MarkIconButton(
+            icon = MarkIcons.More,
+            contentDescription = stringResource(R.string.chat_history),
+            onClick = onOpenHistory,
+            background = MaterialTheme.colorScheme.surfaceContainerHigh,
+        )
         Text(
             text = title,
             style = MaterialTheme.typography.titleMedium,
             color = MaterialTheme.colorScheme.onSurface,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.weight(1f),
+            modifier = Modifier
+                .weight(1f)
+                .padding(horizontal = 4.dp),
         )
-        TopBarButton(
-            icon = Icons.Rounded.History,
-            description = stringResource(R.string.chat_new_conversation),
-            onClick = onOpenHistory,
-        )
-        TopBarButton(
-            icon = Icons.Rounded.AddComment,
-            description = stringResource(R.string.chat_new_conversation),
+        MarkIconButton(
+            icon = MarkIcons.NewChat,
+            contentDescription = stringResource(R.string.chat_new_conversation),
             onClick = onNewConversation,
-        )
-    }
-}
-
-@Composable
-private fun TopBarButton(
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
-    description: String,
-    onClick: () -> Unit,
-) {
-    Box(
-        modifier = Modifier
-            .size(40.dp)
-            .clip(PillShape)
-            .background(MaterialTheme.colorScheme.surfaceContainerHigh)
-            .bouncyClickable(onClick = onClick),
-        contentAlignment = Alignment.Center,
-    ) {
-        Icon(
-            imageVector = icon,
-            contentDescription = description,
-            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.size(19.dp),
+            background = MaterialTheme.colorScheme.surfaceContainerHigh,
         )
     }
 }
@@ -250,19 +223,11 @@ private fun ChatEmptyState(
             title = stringResource(R.string.chat_no_model_title),
             body = stringResource(R.string.chat_no_model_body),
             action = {
-                Row(
-                    modifier = Modifier
-                        .clip(PillShape)
-                        .background(MaterialTheme.colorScheme.primary)
-                        .bouncyClickable(onClick = onOpenModels)
-                        .padding(horizontal = 22.dp, vertical = 12.dp),
-                ) {
-                    Text(
-                        text = stringResource(R.string.chat_go_to_models),
-                        style = MaterialTheme.typography.labelLarge,
-                        color = MaterialTheme.colorScheme.onPrimary,
-                    )
-                }
+                PrimaryPillButton(
+                    label = stringResource(R.string.chat_go_to_models),
+                    icon = MarkIcons.Model,
+                    onClick = onOpenModels,
+                )
             },
         )
         return
@@ -293,7 +258,7 @@ private fun ChatEmptyState(
             text = stringResource(R.string.chat_empty_body),
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
-            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+            textAlign = TextAlign.Center,
         )
         VSpace(28)
         FlowRow(
@@ -301,7 +266,11 @@ private fun ChatEmptyState(
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             suggestions.forEach { suggestion ->
-                SuggestionChip(text = suggestion, onClick = { onSuggestion(suggestion) })
+                SuggestionChip(
+                    text = suggestion,
+                    icon = MarkIcons.Sparkle,
+                    onClick = { onSuggestion(suggestion) },
+                )
             }
         }
     }
@@ -309,7 +278,7 @@ private fun ChatEmptyState(
 
 @Composable
 private fun ConversationHistorySheet(
-    conversations: List<nl.markmaaktmedia.markmaaktai.data.db.ConversationEntity>,
+    conversations: List<ConversationEntity>,
     currentId: Long,
     onOpen: (Long) -> Unit,
     onDelete: (Long) -> Unit,
@@ -331,27 +300,31 @@ private fun ConversationHistorySheet(
                 .navigationBarsPadding(),
         ) {
             Text(
-                text = stringResource(R.string.chat_new_conversation),
-                style = MaterialTheme.typography.titleMedium,
-                modifier = Modifier.padding(bottom = 12.dp),
+                text = stringResource(R.string.chat_history),
+                style = MaterialTheme.typography.titleLarge,
+                modifier = Modifier.padding(start = 4.dp, bottom = 14.dp),
             )
 
             if (conversations.isEmpty()) {
                 Text(
-                    text = stringResource(R.string.chat_empty_body),
+                    text = stringResource(R.string.chat_history_empty),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(bottom = 24.dp),
+                    modifier = Modifier.padding(start = 4.dp, bottom = 32.dp),
                 )
                 return@Column
             }
 
             LazyColumn(
                 verticalArrangement = Arrangement.spacedBy(8.dp),
-                contentPadding = androidx.compose.foundation.layout.PaddingValues(bottom = 24.dp),
+                contentPadding = PaddingValues(bottom = 24.dp),
             ) {
                 items(conversations, key = { it.id }) { conversation ->
-                    SwipeToDelete(item = conversation, onDelete = { onDelete(it.id) }) {
+                    SwipeToDelete(
+                        item = conversation,
+                        onDelete = { onDelete(it.id) },
+                        shape = CardSquircle,
+                    ) {
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -364,7 +337,7 @@ private fun ConversationHistorySheet(
                                     }
                                 )
                                 .bouncyClickable { onOpen(conversation.id) }
-                                .padding(horizontal = 16.dp, vertical = 14.dp),
+                                .padding(horizontal = 18.dp, vertical = 16.dp),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
                             Text(
@@ -381,7 +354,7 @@ private fun ConversationHistorySheet(
     }
 }
 
-private fun openUrl(context: android.content.Context, url: String) {
+private fun openUrl(context: Context, url: String) {
     runCatching {
         context.startActivity(
             Intent(Intent.ACTION_VIEW, Uri.parse(url)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)

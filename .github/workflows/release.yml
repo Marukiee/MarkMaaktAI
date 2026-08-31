@@ -4,6 +4,8 @@ on:
   push:
     tags:
       - 'v*'
+    branches:
+      - main
   workflow_dispatch:
 
 jobs:
@@ -65,6 +67,12 @@ jobs:
         id: stage
         run: |
           VERSION="${GITHUB_REF_NAME#v}"
+          # A push to main is not a version, so fall back to the run number rather
+          # than naming the artifact after the branch.
+          case "$GITHUB_REF" in
+            refs/tags/v*) ;;
+            *) VERSION="0.0.${GITHUB_RUN_NUMBER}" ;;
+          esac
           APK=$(find app/build/outputs/apk/release -name '*.apk' | head -1)
           cp "$APK" "$RUNNER_TEMP/MarkMaaktAI-v${VERSION}.apk"
           cp "$APK" "$RUNNER_TEMP/MarkMaaktAI.apk"
@@ -78,6 +86,7 @@ jobs:
           retention-days: 30
 
       - name: Publish GitHub Release
+        if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.ref_name }}

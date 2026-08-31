@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
@@ -30,18 +31,19 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import nl.markmaaktmedia.markmaaktai.ui.theme.MarkMotion
 import kotlin.math.abs
 
-data class PillNavItem(
+class PillNavItem(
     val label: String,
-    val icon: ImageVector,
-    val selectedIcon: ImageVector = icon,
+    val icon: @Composable () -> Painter,
+    val selectedIcon: @Composable () -> Painter = icon,
     val badgeCount: Int = 0,
 )
 
@@ -49,15 +51,18 @@ data class PillNavItem(
  * The floating navigation bar.
  *
  * One indicator, not four backgrounds. A single pill lives behind the row and travels
- * to whichever tab was tapped, which is the thing that makes the bar read as one
- * object rather than four buttons that light up independently.
+ * to whichever tab was tapped, which is what makes the bar read as one object rather
+ * than four buttons that light up independently.
  *
  * The elastic part comes from the travel itself: the pill stretches along its
  * direction of movement in proportion to how far it still has to go, and settles back
- * to its resting width as it arrives. So a hop to the neighbouring tab barely deforms
- * and a jump across the bar visibly stretches, which is what makes the distance
- * legible rather than decorative. The stretch is applied as a scale on the pill only,
- * so the labels never distort with it.
+ * to its resting width as it arrives. A hop to the neighbour barely deforms, a jump
+ * across the bar visibly stretches, so the distance is legible rather than decorative.
+ *
+ * Icon and label are laid out as one centred block inside the full indicator height,
+ * with the icon given a fixed box. Letting the label sit under a free standing icon
+ * leaves the pair riding high inside the pill, which is subtle enough that it just
+ * reads as sloppy.
  */
 @Composable
 fun PillNavigationBar(
@@ -95,8 +100,7 @@ fun PillNavigationBar(
             modifier = Modifier
                 .offset(x = position.value.dp)
                 .width(slotWidth)
-                .height(IndicatorHeight)
-                .align(Alignment.CenterStart)
+                .fillMaxHeight()
                 .graphicsLayer {
                     scaleX = stretch
                     scaleY = squash
@@ -105,11 +109,7 @@ fun PillNavigationBar(
                 .background(indicatorColor)
         )
 
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceEvenly,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
+        Row(modifier = Modifier.fillMaxWidth()) {
             items.forEachIndexed { index, item ->
                 PillNavTab(
                     item = item,
@@ -140,62 +140,69 @@ private fun PillNavTab(
         animationSpec = MarkMotion.colourSpec(),
         label = "navTabColour",
     )
-    // The selected tab rides a touch higher and larger, so the pill has something
-    // to be holding up rather than sitting behind.
+    // The selected tab grows a touch, so the pill has something to be holding up
+    // rather than sitting behind.
     val lift by animateFloatAsState(
         targetValue = if (selected) 1f else 0f,
         animationSpec = MarkMotion.springy(),
         label = "navTabLift",
     )
 
-    Column(
+    Box(
         modifier = modifier
-            .height(IndicatorHeight)
+            .fillMaxHeight()
             .selectable(
                 selected = selected,
                 onClick = onSelect,
                 role = Role.Tab,
                 interactionSource = interactionSource,
                 indication = null,
-            )
-            .graphicsLayer {
-                scaleX = 1f + lift * 0.06f
-                scaleY = 1f + lift * 0.06f
-                translationY = -lift * 1.5f
-            },
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center,
+            ),
+        contentAlignment = Alignment.Center,
     ) {
-        Box(contentAlignment = Alignment.Center) {
-            Icon(
-                imageVector = if (selected) item.selectedIcon else item.icon,
-                contentDescription = item.label,
-                tint = contentColor,
-                modifier = Modifier.size(IconSize),
-            )
-            if (item.badgeCount > 0) {
-                CountBadge(
-                    count = item.badgeCount,
-                    modifier = Modifier
-                        .align(Alignment.TopEnd)
-                        .offset(x = 10.dp, y = (-6).dp),
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(1.dp),
+            modifier = Modifier.graphicsLayer {
+                scaleX = 1f + lift * 0.05f
+                scaleY = 1f + lift * 0.05f
+            },
+        ) {
+            Box(
+                modifier = Modifier.size(IconBox),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    painter = if (selected) item.selectedIcon() else item.icon(),
+                    contentDescription = item.label,
+                    tint = contentColor,
+                    modifier = Modifier.size(IconSize),
                 )
+                if (item.badgeCount > 0) {
+                    CountBadge(
+                        count = item.badgeCount,
+                        modifier = Modifier
+                            .align(Alignment.TopEnd)
+                            .offset(x = 8.dp, y = (-2).dp),
+                    )
+                }
             }
+            Text(
+                text = item.label,
+                style = MaterialTheme.typography.labelSmall,
+                color = contentColor,
+                maxLines = 1,
+                textAlign = TextAlign.Center,
+                overflow = TextOverflow.Ellipsis,
+            )
         }
-        Text(
-            text = item.label,
-            style = MaterialTheme.typography.labelSmall,
-            color = contentColor,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-        )
     }
 }
 
-private val BarHeight: Dp = 64.dp
-private val IndicatorHeight: Dp = 52.dp
-private val Padding: Dp = 6.dp
-private val IconSize: Dp = 22.dp
+private val BarHeight: Dp = 66.dp
+private val Padding: Dp = 7.dp
+private val IconBox: Dp = 24.dp
+private val IconSize: Dp = 21.dp
 
 /** How much of a full slot of remaining travel turns into stretch, and into squash. */
 private const val StretchFactor = 0.14f

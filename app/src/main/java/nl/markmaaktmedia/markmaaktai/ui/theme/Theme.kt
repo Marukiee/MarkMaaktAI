@@ -6,8 +6,6 @@ import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.dynamicDarkColorScheme
-import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.SideEffect
@@ -16,6 +14,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
+import nl.markmaaktmedia.markmaaktai.data.prefs.ColourSeedSetting
+import nl.markmaaktmedia.markmaaktai.data.prefs.PaletteStyleSetting
 import nl.markmaaktmedia.markmaaktai.data.prefs.ThemeMode
 
 /** Extra colours Material does not have a slot for. */
@@ -23,7 +23,7 @@ data class MarkExtraColors(
     val urgent: Color,
     val urgentContainer: Color,
     val onUrgentContainer: Color,
-    /** True when the pure black surface is in use, so a component can skip its elevation tint. */
+    /** True when the pure black surface is in use, so a component can skip its tint. */
     val isPureBlack: Boolean,
 )
 
@@ -41,6 +41,8 @@ fun MarkTheme(
     themeMode: ThemeMode = ThemeMode.SYSTEM,
     dynamicColor: Boolean = true,
     pureBlack: Boolean = true,
+    paletteStyle: PaletteStyleSetting = PaletteStyleSetting.TONAL_SPOT,
+    colourSeed: ColourSeedSetting = ColourSeedSetting.WALLPAPER,
     /** The assist overlay draws over another app, so it never paints system bars. */
     applySystemBarStyle: Boolean = true,
     content: @Composable () -> Unit,
@@ -52,24 +54,37 @@ fun MarkTheme(
     }
     val context = LocalContext.current
 
-    val baseScheme = when {
-        dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S ->
-            if (dark) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
+    /*
+     * The seed is read as a raw colour and the scheme is generated here rather than
+     * taken from dynamicLightColorScheme. That call always produces Tonal Spot, so
+     * going through the generator is what lets the palette style actually be a
+     * setting instead of a label on a fixed palette.
+     */
+    val seed: Color = when {
+        colourSeed != ColourSeedSetting.WALLPAPER ->
+            seedColorFor(colourSeed)
 
-        dark -> MarkDarkColors
-        else -> MarkLightColors
+        dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S ->
+            Color(context.getColor(android.R.color.system_accent1_500))
+
+        else -> MarkPalette.Indigo50
     }
 
-    val usePureBlack = dark && pureBlack
-    val targetScheme = if (usePureBlack) baseScheme.toPureBlack() else baseScheme
+    val generated = buildColorScheme(
+        seed = seed,
+        style = paletteStyle.toPaletteStyle(),
+        dark = dark,
+    )
 
-    // Every role is animated, so switching theme, flipping pure black or changing the
-    // wallpaper crossfades the whole app instead of swapping it in one frame. This is
-    // the single change that makes the light and dark switch feel considered.
+    val usePureBlack = dark && pureBlack
+    val targetScheme = if (usePureBlack) generated.toPureBlack() else generated
+
+    // Every role is animated, so switching theme, flipping pure black or picking a
+    // different palette crossfades the whole app instead of swapping it in one frame.
     val scheme = targetScheme.animated()
 
     val extras = MarkExtraColors(
-        urgent = if (dark) MarkPalette.Urgent else MarkPalette.Urgent,
+        urgent = MarkPalette.Urgent,
         urgentContainer = if (dark) MarkPalette.UrgentContainerDark else MarkPalette.UrgentContainerLight,
         onUrgentContainer = if (dark) MarkPalette.Neutral95 else MarkPalette.Neutral10,
         isPureBlack = usePureBlack,
@@ -98,25 +113,45 @@ fun MarkTheme(
     }
 }
 
+private fun PaletteStyleSetting.toPaletteStyle(): PaletteStyle = when (this) {
+    PaletteStyleSetting.TONAL_SPOT -> PaletteStyle.TONAL_SPOT
+    PaletteStyleSetting.VIBRANT -> PaletteStyle.VIBRANT
+    PaletteStyleSetting.EXPRESSIVE -> PaletteStyle.EXPRESSIVE
+    PaletteStyleSetting.FRUIT_SALAD -> PaletteStyle.FRUIT_SALAD
+    PaletteStyleSetting.FIDELITY -> PaletteStyle.FIDELITY
+    PaletteStyleSetting.MONOCHROME -> PaletteStyle.MONOCHROME
+}
+
+fun seedColorFor(setting: ColourSeedSetting): Color =
+    ColourSeed.fromKey(setting.storageKey).seed
+
 /**
  * Pushes the dark scheme down to true black.
  *
  * Not a blanket black: only the backdrop goes to #000000, and the container roles are
- * kept as a short ladder of very dark greys. An OLED screen wins on the large flat
- * areas, and cards still have an edge you can see, which is the part most pure black
- * modes get wrong by painting everything the same colour and losing all depth.
+ * kept as a short ladder of very dark greys tinted towards the seed. An OLED screen
+ * wins on the large flat areas, and cards still have an edge you can see, which is
+ * what most pure black modes lose by painting everything the same colour.
  */
-private fun ColorScheme.toPureBlack(): ColorScheme = copy(
-    background = Color.Black,
-    surface = Color.Black,
-    surfaceContainerLowest = Color.Black,
-    surfaceContainerLow = Color(0xFF0A0A0D),
-    surfaceContainer = Color(0xFF121216),
-    surfaceContainerHigh = Color(0xFF1A1A20),
-    surfaceContainerHighest = Color(0xFF23232A),
-    surfaceVariant = Color(0xFF1A1A20),
-    outlineVariant = Color(0xFF33333D),
-)
+private fun ColorScheme.toPureBlack(): ColorScheme {
+    fun tinted(alpha: Float) = surfaceContainerHighest.copy(alpha = alpha).compositeOverBlack()
+    return copy(
+        background = Color.Black,
+        surface = Color.Black,
+        surfaceDim = Color.Black,
+        surfaceContainerLowest = Color.Black,
+        surfaceContainerLow = tinted(0.05f),
+        surfaceContainer = tinted(0.09f),
+        surfaceContainerHigh = tinted(0.14f),
+        surfaceContainerHighest = tinted(0.19f),
+        surfaceVariant = tinted(0.12f),
+        outlineVariant = tinted(0.26f),
+    )
+}
+
+/** Flattens a translucent colour onto black, so the result is opaque. */
+private fun Color.compositeOverBlack(): Color =
+    Color(red = red * alpha, green = green * alpha, blue = blue * alpha, alpha = 1f)
 
 @Composable
 private fun ColorScheme.animated(): ColorScheme {

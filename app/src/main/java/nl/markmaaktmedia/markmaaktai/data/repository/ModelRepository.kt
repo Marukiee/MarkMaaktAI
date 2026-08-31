@@ -4,13 +4,17 @@ import android.content.Context
 import android.net.Uri
 import android.provider.OpenableColumns
 import android.util.Log
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import nl.markmaaktmedia.markmaaktai.ai.ModelRole
 import nl.markmaaktmedia.markmaaktai.ai.ModelSpec
@@ -61,6 +65,18 @@ class ModelRepository @Inject constructor(
 
     private val _downloads = MutableStateFlow<Map<String, DownloadProgress>>(emptyMap())
     val downloads: StateFlow<Map<String, DownloadProgress>> = _downloads.asStateFlow()
+
+    /**
+     * Downloads run on the repository's own scope, not the caller's.
+     *
+     * A model is a gigabyte and a half, and the screen that started it is the
+     * onboarding, which the user leaves as soon as they press Next. Tying the transfer
+     * to that screen's view model means the download dies the moment they move on,
+     * which is exactly when they expect it to be getting on with it.
+     */
+    private val downloadScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
+    private val jobs = mutableMapOf<String, Job>()
 
     fun modelsDir(): File = File(context.filesDir, "models").apply { mkdirs() }
 
@@ -115,6 +131,21 @@ class ModelRepository @Inject constructor(
                 )
             }
         }
+
+    /**
+     * Starts a download if one is not already running for this model, and returns
+     * immediately. Progress is reported through [downloads].
+     */
+    fun startDownload(spec: ModelSpec, onFinished: suspend (Result<File>) -> Unit = {}) {
+        if (jobs[spec.id]?.isActive == true) return
+        jobs[spec.id] = downloadScope.launch {
+            val result = download(spec)
+            jobs.remove(spec.id)
+            onFinished(result)
+        }
+    }
+
+    fun isDownloading(specId: String): Boolean = jobs[specId]?.isActive == true
 
     /** Downloads a catalogue entry, reporting progress. Speech models are unzipped. */
     suspend fun download(spec: ModelSpec): Result<File> = withContext(Dispatchers.IO) {
@@ -183,6 +214,7 @@ class ModelRepository @Inject constructor(
     }
 
     fun cancelDownload(specId: String) {
+        jobs.remove(specId)?.cancel()
         clearProgress(specId)
     }
 

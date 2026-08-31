@@ -220,4 +220,23 @@
     <string name="onboarding_no_account">Geen account en geen inloggen. De download begint meteen.</string>
     <string name="onboarding_works_without">Foto\'s en screenshots worden zonder model gelezen, dus je kunt dit overslaan en later terugkomen.</string>
     <string name="chat_phone_context">Gebruik mijn telefoon</string>
+    <string name="chat_history">Gesprekken</string>
+    <string name="chat_history_empty">Nog niets. Stel een vraag en hij komt hier te staan.</string>
+    <string name="settings_section_access">Rechten</string>
+    <string name="settings_colour_source">Accentkleur</string>
+    <string name="settings_colour_wallpaper">Van je achtergrond</string>
+    <string name="settings_palette_style">Paletstijl</string>
+    <string name="settings_brave_key_hint">Plak je sleutel</string>
+    <string name="settings_notification_enabled">Meldingen samenvatten</string>
+    <string name="settings_notification_enabled_desc">Maak van een reeks berichten een samenvatting</string>
+    <string name="settings_urgent_alerts">Waarschuw bij spoed</string>
+    <string name="settings_urgent_alerts_desc">Laat iets dat het model als spoed markeert geluid maken</string>
+    <string name="palette_tonal_spot">Tonaal</string>
+    <string name="palette_vibrant">Levendig</string>
+    <string name="palette_expressive">Expressief</string>
+    <string name="palette_fruit_salad">Fruitsalade</string>
+    <string name="palette_fidelity">Getrouw</string>
+    <string name="palette_monochrome">Mono</string>
+    <string name="onboarding_model_ready">Model staat klaar</string>
+    <string name="onboarding_download_continues">Ga gerust verder, de download loopt op de achtergrond door.</string>
 </resources>

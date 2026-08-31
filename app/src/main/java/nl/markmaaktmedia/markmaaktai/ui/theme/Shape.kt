@@ -94,6 +94,28 @@ class SquircleShape(private val radius: Dp) : Shape {
     }
 }
 
+/**
+ * The corner treatment for an item inside a grouped list.
+ *
+ * Outer corners of the group stay large and the ones facing a neighbour pull in to
+ * almost nothing, so a block of settings reads as one rounded slab that has been cut
+ * rather than as a stack of separate cards. A single item in a group keeps all four
+ * corners large, which is why the count matters and not just the position.
+ */
+fun groupedShape(index: Int, total: Int): RoundedCornerShape {
+    val outer = 24.dp
+    val inner = 4.dp
+    return when {
+        total <= 1 -> RoundedCornerShape(outer)
+        index == 0 -> RoundedCornerShape(topStart = outer, topEnd = outer, bottomStart = inner, bottomEnd = inner)
+        index == total - 1 -> RoundedCornerShape(topStart = inner, topEnd = inner, bottomStart = outer, bottomEnd = outer)
+        else -> RoundedCornerShape(inner)
+    }
+}
+
+/** The gap between grouped items, kept small so the group still reads as one block. */
+val GroupedSpacing = 2.dp
+
 val CardSquircle = SquircleShape(28.dp)
 val SheetSquircle = SquircleShape(36.dp)
 val ChipSquircle = SquircleShape(16.dp)

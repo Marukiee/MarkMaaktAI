@@ -4,6 +4,43 @@ package nl.markmaaktmedia.markmaaktai.data.prefs
 enum class ThemeMode { SYSTEM, LIGHT, DARK }
 
 /**
+ * Mirrors the palette style and seed choices from the theme layer.
+ *
+ * Kept as their own enums here so the preferences layer does not depend on anything
+ * in the UI package, which is what lets a background worker read settings without
+ * dragging Compose in with it.
+ */
+enum class PaletteStyleSetting(val storageKey: String) {
+    TONAL_SPOT("tonal_spot"),
+    VIBRANT("vibrant"),
+    EXPRESSIVE("expressive"),
+    FRUIT_SALAD("fruit_salad"),
+    FIDELITY("fidelity"),
+    MONOCHROME("monochrome");
+
+    companion object {
+        fun fromKey(value: String?): PaletteStyleSetting =
+            entries.firstOrNull { it.storageKey == value } ?: TONAL_SPOT
+    }
+}
+
+enum class ColourSeedSetting(val storageKey: String) {
+    WALLPAPER("wallpaper"),
+    INDIGO("indigo"),
+    OCEAN("ocean"),
+    FOREST("forest"),
+    AMBER("amber"),
+    ROSE("rose"),
+    PLUM("plum"),
+    SLATE("slate");
+
+    companion object {
+        fun fromKey(value: String?): ColourSeedSetting =
+            entries.firstOrNull { it.storageKey == value } ?: WALLPAPER
+    }
+}
+
+/**
  * Everything the user can tune. Defaults are chosen so a fresh install behaves
  * well on a phone with no model yet and no network permission granted.
  */
@@ -11,9 +48,12 @@ data class UserSettings(
     val themeMode: ThemeMode = ThemeMode.SYSTEM,
     val dynamicColor: Boolean = true,
     val pureBlack: Boolean = true,
+    val paletteStyle: PaletteStyleSetting = PaletteStyleSetting.TONAL_SPOT,
+    val colourSeed: ColourSeedSetting = ColourSeedSetting.WALLPAPER,
 
     val temperature: Float = 0.7f,
-    val maxTokens: Int = 1024,
+    /** Answer budget. Capped against the model's own KV cache when it is loaded. */
+    val maxTokens: Int = 640,
     val useGpu: Boolean = true,
 
     val webSearchEnabled: Boolean = false,

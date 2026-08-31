@@ -18,11 +18,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.ArrowBack
-import androidx.compose.material.icons.rounded.CheckCircle
-import androidx.compose.material.icons.rounded.Download
-import androidx.compose.material.icons.rounded.FolderOpen
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
@@ -49,6 +44,7 @@ import nl.markmaaktmedia.markmaaktai.ui.components.SettingsGroup
 import nl.markmaaktmedia.markmaaktai.ui.components.SoftDivider
 import nl.markmaaktmedia.markmaaktai.ui.components.VSpace
 import nl.markmaaktmedia.markmaaktai.ui.components.bouncyClickable
+import nl.markmaaktmedia.markmaaktai.ui.theme.MarkIcons
 import nl.markmaaktmedia.markmaaktai.ui.theme.CardSquircle
 import nl.markmaaktmedia.markmaaktai.ui.theme.PillShape
 import java.util.Locale
@@ -82,7 +78,7 @@ fun ModelsScreen(
                     contentAlignment = Alignment.Center,
                 ) {
                     Icon(
-                        imageVector = Icons.Rounded.ArrowBack,
+                        painter = MarkIcons.Back,
                         contentDescription = stringResource(R.string.generic_back),
                         tint = MaterialTheme.colorScheme.onSurface,
                     )
@@ -196,7 +192,7 @@ private fun androidx.compose.foundation.lazy.LazyListScope.modelSection(
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 Icon(
-                    imageVector = Icons.Rounded.FolderOpen,
+                    painter = MarkIcons.Folder,
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.size(20.dp),
@@ -271,7 +267,7 @@ private fun ModelRow(
                 }
 
                 active -> Icon(
-                    imageVector = Icons.Rounded.CheckCircle,
+                    painter = MarkIcons.CheckCircle,
                     contentDescription = stringResource(R.string.models_active),
                     tint = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.size(24.dp),
@@ -288,7 +284,7 @@ private fun ModelRow(
                     contentAlignment = Alignment.Center,
                 ) {
                     Icon(
-                        imageVector = Icons.Rounded.Download,
+                        painter = MarkIcons.Download,
                         contentDescription = stringResource(R.string.models_download),
                         tint = MaterialTheme.colorScheme.onPrimaryContainer,
                         modifier = Modifier.size(20.dp),

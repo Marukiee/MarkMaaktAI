@@ -92,6 +92,18 @@ class ShotsViewModel @Inject constructor(
         }
     }
 
+    /**
+     * Wipes the search when the tab is left.
+     *
+     * The view model outlives the screen, so without this the query and its results
+     * are still there on the next visit, and the grid looks like it has lost most of
+     * the library until you notice the search box.
+     */
+    fun clearSearch() {
+        searchJob?.cancel()
+        _uiState.update { it.copy(query = "", searchResults = null, openedId = null) }
+    }
+
     fun setCategory(category: String?) {
         _uiState.update { it.copy(category = category) }
     }

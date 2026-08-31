@@ -5,7 +5,6 @@ import android.os.StatFs
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -47,8 +46,6 @@ class ModelsViewModel @Inject constructor(
     val visionCatalog: List<ModelSpec> = ModelCatalog.visionModels
     val speechCatalog: List<ModelSpec> = ModelCatalog.speechModels
 
-    private val downloadJobs = mutableMapOf<String, Job>()
-
     init {
         refresh()
         viewModelScope.launch {
@@ -79,9 +76,10 @@ class ModelsViewModel @Inject constructor(
      * and the only reason to have downloaded it was to use it.
      */
     fun download(spec: ModelSpec) {
-        if (downloadJobs.containsKey(spec.id)) return
-        val job = viewModelScope.launch {
-            val result = repository.download(spec)
+        // Handed to the repository so the transfer outlives this screen. The user
+        // starting a download in onboarding and immediately pressing Next is the
+        // normal case, not an edge one.
+        repository.startDownload(spec) { result ->
             result.onSuccess { file ->
                 repository.activate(
                     InstalledModel(
@@ -94,14 +92,11 @@ class ModelsViewModel @Inject constructor(
                     spec.role,
                 )
             }
-            downloadJobs.remove(spec.id)
             refresh()
         }
-        downloadJobs[spec.id] = job
     }
 
     fun cancelDownload(spec: ModelSpec) {
-        downloadJobs.remove(spec.id)?.cancel()
         repository.cancelDownload(spec.id)
         refresh()
     }

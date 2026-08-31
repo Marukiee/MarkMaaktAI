@@ -101,6 +101,8 @@ class MarkAssistSession(context: Context) :
                     themeMode = settings.themeMode,
                     dynamicColor = settings.dynamicColor,
                     pureBlack = settings.pureBlack,
+                    paletteStyle = settings.paletteStyle,
+                    colourSeed = settings.colourSeed,
                     // The sheet floats over another app, so it must not restyle that
                     // app's status bar on its way in.
                     applySystemBarStyle = false,
@@ -137,6 +139,11 @@ class MarkAssistSession(context: Context) :
         state.value = AssistUiState(hasScreenContext = false)
         screenText = ""
         structureText = ""
+        // Pressing the power button and talking should be the whole interaction, so
+        // the microphone opens itself. It only starts when the permission is already
+        // granted: a permission prompt cannot be shown from a voice session, and
+        // asking for one here would just fail silently.
+        if (entryPoint.speechInput().hasMicrophonePermission()) toggleDictation()
     }
 
     override fun onHide() {

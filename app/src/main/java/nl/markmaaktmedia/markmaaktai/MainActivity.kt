@@ -59,6 +59,8 @@ class MainActivity : ComponentActivity() {
                 themeMode = settings.themeMode,
                 dynamicColor = settings.dynamicColor,
                 pureBlack = settings.pureBlack,
+                paletteStyle = settings.paletteStyle,
+                colourSeed = settings.colourSeed,
             ) {
                 AnimatedContent(
                     targetState = onboardingDone,

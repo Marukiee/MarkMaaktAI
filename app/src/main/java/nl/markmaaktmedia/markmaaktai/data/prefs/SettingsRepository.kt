@@ -28,6 +28,8 @@ class SettingsRepository @Inject constructor(
         val themeMode = stringPreferencesKey("theme_mode")
         val dynamicColor = booleanPreferencesKey("dynamic_color")
         val pureBlack = booleanPreferencesKey("pure_black")
+        val paletteStyle = stringPreferencesKey("palette_style")
+        val colourSeed = stringPreferencesKey("colour_seed")
 
         val temperature = floatPreferencesKey("temperature")
         val maxTokens = intPreferencesKey("max_tokens")
@@ -63,6 +65,8 @@ class SettingsRepository @Inject constructor(
                 ?: defaults.themeMode,
             dynamicColor = prefs[Keys.dynamicColor] ?: defaults.dynamicColor,
             pureBlack = prefs[Keys.pureBlack] ?: defaults.pureBlack,
+            paletteStyle = PaletteStyleSetting.fromKey(prefs[Keys.paletteStyle]),
+            colourSeed = ColourSeedSetting.fromKey(prefs[Keys.colourSeed]),
             temperature = prefs[Keys.temperature] ?: defaults.temperature,
             maxTokens = prefs[Keys.maxTokens] ?: defaults.maxTokens,
             useGpu = prefs[Keys.useGpu] ?: defaults.useGpu,
@@ -92,6 +96,8 @@ class SettingsRepository @Inject constructor(
     suspend fun setThemeMode(mode: ThemeMode) = put { it[Keys.themeMode] = mode.name }
     suspend fun setDynamicColor(enabled: Boolean) = put { it[Keys.dynamicColor] = enabled }
     suspend fun setPureBlack(enabled: Boolean) = put { it[Keys.pureBlack] = enabled }
+    suspend fun setPaletteStyle(style: PaletteStyleSetting) = put { it[Keys.paletteStyle] = style.storageKey }
+    suspend fun setColourSeed(seed: ColourSeedSetting) = put { it[Keys.colourSeed] = seed.storageKey }
 
     suspend fun setTemperature(value: Float) = put { it[Keys.temperature] = value }
     suspend fun setMaxTokens(value: Int) = put { it[Keys.maxTokens] = value }

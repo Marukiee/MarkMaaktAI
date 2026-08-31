@@ -20,10 +20,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.ChatBubbleOutline
-import androidx.compose.material.icons.rounded.ExpandMore
-import androidx.compose.material.icons.rounded.PriorityHigh
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Snackbar
@@ -46,6 +42,7 @@ import nl.markmaaktmedia.markmaaktai.ui.components.SoftDivider
 import nl.markmaaktmedia.markmaaktai.ui.components.SwipeToDelete
 import nl.markmaaktmedia.markmaaktai.ui.components.VSpace
 import nl.markmaaktmedia.markmaaktai.ui.components.bouncyClickable
+import nl.markmaaktmedia.markmaaktai.ui.theme.MarkIcons
 import nl.markmaaktmedia.markmaaktai.ui.theme.CardSquircle
 import nl.markmaaktmedia.markmaaktai.ui.theme.ChipSquircle
 import nl.markmaaktmedia.markmaaktai.ui.theme.LocalMarkExtraColors
@@ -230,13 +227,13 @@ private fun SummaryCard(
             if (summary.isUrgent) {
                 PillBadge(
                     text = stringResource(R.string.digest_urgent),
-                    icon = Icons.Rounded.PriorityHigh,
+                    icon = MarkIcons.Urgent,
                     containerColor = extras.urgent,
                     contentColor = androidx.compose.ui.graphics.Color.White,
                 )
             }
             Icon(
-                imageVector = Icons.Rounded.ExpandMore,
+                painter = MarkIcons.ChevronDown,
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier
@@ -296,7 +293,7 @@ private fun SummaryCard(
                 horizontalArrangement = Arrangement.spacedBy(5.dp),
             ) {
                 Icon(
-                    imageVector = Icons.Rounded.ChatBubbleOutline,
+                    painter = MarkIcons.Chat,
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.size(13.dp),

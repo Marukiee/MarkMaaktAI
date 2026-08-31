@@ -12,15 +12,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.ChatBubbleOutline
-import androidx.compose.material.icons.outlined.Inbox
-import androidx.compose.material.icons.outlined.PhotoLibrary
-import androidx.compose.material.icons.outlined.Tune
-import androidx.compose.material.icons.rounded.ChatBubble
-import androidx.compose.material.icons.rounded.Inbox
-import androidx.compose.material.icons.rounded.PhotoLibrary
-import androidx.compose.material.icons.rounded.Tune
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
@@ -44,6 +35,7 @@ import nl.markmaaktmedia.markmaaktai.ui.digest.DigestViewModel
 import nl.markmaaktmedia.markmaaktai.ui.models.ModelsScreen
 import nl.markmaaktmedia.markmaaktai.ui.settings.SettingsScreen
 import nl.markmaaktmedia.markmaaktai.ui.shots.ShotsScreen
+import nl.markmaaktmedia.markmaaktai.ui.theme.MarkIcons
 import nl.markmaaktmedia.markmaaktai.ui.theme.MarkMotion
 
 enum class MarkTab { Chat, Shots, Digest, Settings }
@@ -70,24 +62,24 @@ fun MarkNavHost(
     val items = listOf(
         PillNavItem(
             label = stringResource(R.string.nav_chat),
-            icon = Icons.Outlined.ChatBubbleOutline,
-            selectedIcon = Icons.Rounded.ChatBubble,
+            icon = { MarkIcons.Chat },
+            selectedIcon = { MarkIcons.ChatFilled },
         ),
         PillNavItem(
             label = stringResource(R.string.nav_shots),
-            icon = Icons.Outlined.PhotoLibrary,
-            selectedIcon = Icons.Rounded.PhotoLibrary,
+            icon = { MarkIcons.Shots },
+            selectedIcon = { MarkIcons.ShotsFilled },
         ),
         PillNavItem(
             label = stringResource(R.string.nav_digest),
-            icon = Icons.Outlined.Inbox,
-            selectedIcon = Icons.Rounded.Inbox,
+            icon = { MarkIcons.Digest },
+            selectedIcon = { MarkIcons.DigestFilled },
             badgeCount = unread,
         ),
         PillNavItem(
             label = stringResource(R.string.nav_settings),
-            icon = Icons.Outlined.Tune,
-            selectedIcon = Icons.Rounded.Tune,
+            icon = { MarkIcons.Settings },
+            selectedIcon = { MarkIcons.SettingsFilled },
         ),
     )
 

@@ -17,6 +17,8 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import nl.markmaaktmedia.markmaaktai.BuildConfig
+import nl.markmaaktmedia.markmaaktai.data.prefs.ColourSeedSetting
+import nl.markmaaktmedia.markmaaktai.data.prefs.PaletteStyleSetting
 import nl.markmaaktmedia.markmaaktai.data.prefs.SettingsRepository
 import nl.markmaaktmedia.markmaaktai.data.prefs.ThemeMode
 import nl.markmaaktmedia.markmaaktai.data.prefs.UserSettings
@@ -70,6 +72,14 @@ class SettingsViewModel @Inject constructor(
     fun setThemeMode(mode: ThemeMode) = viewModelScope.launch { settings.setThemeMode(mode) }
     fun setDynamicColor(on: Boolean) = viewModelScope.launch { settings.setDynamicColor(on) }
     fun setPureBlack(on: Boolean) = viewModelScope.launch { settings.setPureBlack(on) }
+    fun setPaletteStyle(style: PaletteStyleSetting) = viewModelScope.launch { settings.setPaletteStyle(style) }
+    fun setColourSeed(seed: ColourSeedSetting) = viewModelScope.launch {
+        settings.setColourSeed(seed)
+        // The wallpaper swatch and the dynamic colour switch are the same decision,
+        // so picking one keeps the other honest instead of leaving a switch that
+        // claims to be on while a fixed seed is in use.
+        settings.setDynamicColor(seed == ColourSeedSetting.WALLPAPER)
+    }
     fun setTemperature(value: Float) = viewModelScope.launch { settings.setTemperature(value) }
     fun setMaxTokens(value: Int) = viewModelScope.launch { settings.setMaxTokens(value) }
     fun setUseGpu(on: Boolean) = viewModelScope.launch { settings.setUseGpu(on) }
@@ -106,6 +116,22 @@ class SettingsViewModel @Inject constructor(
     fun dismissUpdate() = updateRepository.reset()
 
     val releasesUrl: String get() = updateRepository.releasesPageUrl
+
+    val repositoryUrl: String
+        get() = "https://github.com/${BuildConfig.GITHUB_OWNER}/${BuildConfig.GITHUB_REPO}"
+
+    /**
+     * Checks once when the screen is opened, but only if nothing has been checked
+     * recently. Without this the update row sits there saying nothing until the next
+     * cold start, which reads as the feature not being wired up at all.
+     */
+    fun checkOnOpen() {
+        viewModelScope.launch {
+            val last = settings.current().lastUpdateCheck
+            if (System.currentTimeMillis() - last < CHECK_INTERVAL_MS) return@launch
+            checkForUpdates()
+        }
+    }
 
     // Intents that open the system screens. Each one is wrapped because a hardened
     // ROM can simply not have the screen, and a crash there would be absurd.
@@ -155,6 +181,11 @@ class SettingsViewModel @Inject constructor(
     private fun isIgnoringBatteryOptimisations(): Boolean {
         val manager = context.getSystemService(Context.POWER_SERVICE) as? PowerManager
         return manager?.isIgnoringBatteryOptimizations(context.packageName) ?: false
+    }
+
+    private companion object {
+        /** Six hours, so opening settings a few times in a row is not six requests. */
+        const val CHECK_INTERVAL_MS = 6 * 60 * 60 * 1000L
     }
 
     private fun isDefaultAssistant(): Boolean {

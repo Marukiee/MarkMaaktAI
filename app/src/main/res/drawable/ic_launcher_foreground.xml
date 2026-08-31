@@ -1,8 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  One capsule, tilted to -45 degrees, centred inside the adaptive icon safe zone.
-  The fill points at the Android 12+ system palette, so the launcher icon picks up
-  the same wallpaper colours as the Material You theme inside the app.
+  One capsule, tilted to -45 degrees, centred in the adaptive icon safe zone.
+  Sized against the masked area rather than the full 108 canvas: a launcher only
+  ever shows the middle 72, so a shape drawn to fill 108 reads as cramped once the
+  mask is applied. Length is roughly half the visible tile, thickness a little over
+  a third of that length, which is what keeps it a capsule and not a bar.
 -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp"
@@ -15,6 +17,6 @@
         android:rotation="-45">
         <path
             android:fillColor="@color/ic_launcher_pill"
-            android:pathData="M36,41 L72,41 A13,13 0 0 1 72,67 L36,67 A13,13 0 0 1 36,41 Z" />
+            android:pathData="M43,46 L65,46 A8,8 0 0 1 65,62 L43,62 A8,8 0 0 1 43,46 Z" />
     </group>
 </vector>

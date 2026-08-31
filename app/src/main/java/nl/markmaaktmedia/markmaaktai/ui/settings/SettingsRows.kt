@@ -15,8 +15,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.text.BasicTextField
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.ChevronRight
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
@@ -30,11 +28,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.SolidColor
-import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import nl.markmaaktmedia.markmaaktai.ui.components.HelpTip
 import nl.markmaaktmedia.markmaaktai.ui.components.bouncyClickable
+import nl.markmaaktmedia.markmaaktai.ui.theme.MarkIcons
 import nl.markmaaktmedia.markmaaktai.ui.theme.ChipSquircle
 import nl.markmaaktmedia.markmaaktai.ui.theme.MarkMotion
 import nl.markmaaktmedia.markmaaktai.ui.theme.PillShape
@@ -122,7 +121,7 @@ fun ActionRow(
     title: String,
     subtitle: String? = null,
     trailing: String? = null,
-    icon: ImageVector? = null,
+    icon: Painter? = null,
     help: String? = null,
     onClick: () -> Unit,
 ) {
@@ -136,7 +135,7 @@ fun ActionRow(
     ) {
         if (icon != null) {
             Icon(
-                imageVector = icon,
+                painter = icon,
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.size(20.dp),
@@ -167,7 +166,7 @@ fun ActionRow(
             )
         }
         Icon(
-            imageVector = Icons.Rounded.ChevronRight,
+            painter = MarkIcons.ChevronRight,
             contentDescription = null,
             tint = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.size(18.dp),

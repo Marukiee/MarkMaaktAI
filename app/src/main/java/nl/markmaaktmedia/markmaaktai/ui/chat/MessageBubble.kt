@@ -17,9 +17,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.ContentCopy
-import androidx.compose.material.icons.rounded.Link
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -43,6 +40,7 @@ import nl.markmaaktmedia.markmaaktai.data.repository.ChatRepository
 import nl.markmaaktmedia.markmaaktai.ui.components.PillMark
 import nl.markmaaktmedia.markmaaktai.ui.components.bouncyClickable
 import nl.markmaaktmedia.markmaaktai.ui.theme.ChipSquircle
+import nl.markmaaktmedia.markmaaktai.ui.theme.MarkIcons
 import nl.markmaaktmedia.markmaaktai.ui.theme.SquircleShape
 
 /**
@@ -122,8 +120,7 @@ private fun AssistantMessage(
         PillMark(
             size = 22.dp,
             modifier = Modifier.padding(top = 3.dp),
-            color = if (message.isError) MaterialTheme.colorScheme.error
-            else MaterialTheme.colorScheme.primary,
+            color = MaterialTheme.colorScheme.primary,
         )
 
         Column(
@@ -136,8 +133,7 @@ private fun AssistantMessage(
                 Text(
                     text = message.content,
                     style = MaterialTheme.typography.bodyLarge,
-                    color = if (message.isError) MaterialTheme.colorScheme.error
-                    else MaterialTheme.colorScheme.onSurface,
+                    color = MaterialTheme.colorScheme.onSurface,
                 )
             }
 
@@ -145,7 +141,7 @@ private fun AssistantMessage(
                 SourceRow(sources = message.sources, onOpenSource = onOpenSource)
             }
 
-            if (!isStreaming && message.content.isNotBlank() && !message.isError) {
+            if (!isStreaming && message.content.isNotBlank()) {
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     MessageAction(
                         label = stringResource(R.string.chat_copy),
@@ -225,7 +221,7 @@ private fun SourceRow(sources: List<WebSource>, onOpenSource: (String) -> Unit) 
                     horizontalArrangement = Arrangement.spacedBy(6.dp),
                 ) {
                     Icon(
-                        imageVector = Icons.Rounded.Link,
+                        painter = MarkIcons.Link,
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.size(14.dp),
@@ -254,7 +250,7 @@ private fun MessageAction(label: String, onClick: () -> Unit) {
         horizontalArrangement = Arrangement.spacedBy(5.dp),
     ) {
         Icon(
-            imageVector = Icons.Rounded.ContentCopy,
+            painter = MarkIcons.Copy,
             contentDescription = null,
             tint = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.size(13.dp),

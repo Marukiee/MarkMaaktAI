@@ -140,7 +140,7 @@ fun PillMark(
     }
 }
 
-/** Matches the launcher icon: a 36 by 26 capsule inside a 108 square, tilted -45. */
-private const val CAPSULE_WIDTH_RATIO = 0.62f
-private const val CAPSULE_HEIGHT_RATIO = 0.26f
+/** Same proportions as the launcher icon: a 22 by 16 capsule in a 108 square. */
+private const val CAPSULE_WIDTH_RATIO = 0.52f
+private const val CAPSULE_HEIGHT_RATIO = 0.22f
 private const val REST_ANGLE = -45f

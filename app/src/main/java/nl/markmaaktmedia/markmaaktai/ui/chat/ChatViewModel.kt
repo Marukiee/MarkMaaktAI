@@ -44,6 +44,8 @@ data class ChatUiState(
     val partialSpeech: String = "",
     val error: String? = null,
     val hasTextModel: Boolean = true,
+    /** Kept so the error dialog can offer to run the same question again. */
+    val lastQuestion: String = "",
     val engineState: EngineState = EngineState.NoModel,
 )
 
@@ -160,6 +162,12 @@ class ChatViewModel @Inject constructor(
         viewModelScope.launch { chatRepository.deleteMessage(messageId) }
     }
 
+    /** Runs the last question again, straight from the error dialog. */
+    fun retryLast() {
+        val question = _uiState.value.lastQuestion
+        if (question.isNotBlank()) send(question)
+    }
+
     fun send(prefilled: String? = null) {
         val state = _uiState.value
         val question = (prefilled ?: state.input).trim()
@@ -184,7 +192,13 @@ class ChatViewModel @Inject constructor(
         }
 
         _uiState.update {
-            it.copy(input = "", attachmentPath = null, isGenerating = true, error = null)
+            it.copy(
+                input = "",
+                attachmentPath = null,
+                isGenerating = true,
+                error = null,
+                lastQuestion = question,
+            )
         }
         chatRepository.addUserMessage(id, question, attachmentPath)
 
@@ -240,6 +254,7 @@ class ChatViewModel @Inject constructor(
         val assistantId = chatRepository.startAssistantMessage(id)
         val builder = StringBuilder()
         var lastPersisted = 0
+        var failed = false
 
         orchestrator.chat(
             history = history,
@@ -266,19 +281,29 @@ class ChatViewModel @Inject constructor(
                 }
 
                 is InferenceEvent.Failed -> {
-                    finish(id, assistantId, event.message, sources, true)
-                    _uiState.update { it.copy(error = event.message, hasTextModel = orchestrator.hasTextModel()) }
+                    // The failure is not something the assistant said, so it does not
+                    // go in the transcript. The empty bubble is removed and the reason
+                    // is raised as a dialog instead.
+                    failed = true
+                    chatRepository.deleteMessage(assistantId)
+                    _uiState.update {
+                        it.copy(error = event.message, hasTextModel = orchestrator.hasTextModel())
+                    }
                 }
             }
         }
 
         // A cancelled generation still leaves whatever arrived, which is more useful
         // than throwing away half an answer.
-        if (builder.isNotEmpty() && lastPersisted != builder.length) {
+        if (!failed && builder.isNotEmpty() && lastPersisted != builder.length) {
             chatRepository.updateAssistantMessage(assistantId, builder.toString())
         }
+        if (!failed && builder.isEmpty()) {
+            // Nothing came back at all, so the empty bubble would just sit there.
+            chatRepository.deleteMessage(assistantId)
+        }
         _uiState.update { it.copy(isGenerating = false, stage = WorkStage.Idle) }
-        maybeTitle(id, question)
+        if (!failed) maybeTitle(id, question)
     }
 
     private suspend fun finish(
