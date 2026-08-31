@@ -1,0 +1,235 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">MarkMaaktAI</string>
+    <string name="notification_listener_label">MarkMaaktAI notification reader</string>
+
+    <!-- Navigation -->
+    <string name="nav_chat">Chat</string>
+    <string name="nav_digest">Digest</string>
+    <string name="nav_models">Models</string>
+    <string name="nav_settings">Settings</string>
+
+    <!-- Chat -->
+    <string name="chat_title">Ask anything</string>
+    <string name="chat_input_hint">Message MarkMaaktAI</string>
+    <string name="chat_send">Send</string>
+    <string name="chat_stop">Stop</string>
+    <string name="chat_attach_photo">Attach a photo</string>
+    <string name="chat_take_photo">Take a photo</string>
+    <string name="chat_pick_photo">Pick from gallery</string>
+    <string name="chat_remove_attachment">Remove attachment</string>
+    <string name="chat_web_search">Search the web</string>
+    <string name="chat_web_search_on">Web search is on</string>
+    <string name="chat_web_search_off">Web search is off</string>
+    <string name="chat_voice_input">Speak</string>
+    <string name="chat_listening">Listening</string>
+    <string name="chat_thinking">Thinking</string>
+    <string name="chat_searching_web">Reading the web</string>
+    <string name="chat_reading_image">Reading the image</string>
+    <string name="chat_reading_notifications">Looking through your notifications</string>
+    <string name="chat_new_conversation">New conversation</string>
+    <string name="chat_empty_title">What is on your mind?</string>
+    <string name="chat_empty_body">Everything runs on this phone. Web search and model downloads are the only things that ever touch the network.</string>
+    <string name="chat_copy">Copy</string>
+    <string name="chat_copied">Copied</string>
+    <string name="chat_regenerate">Try again</string>
+    <string name="chat_delete_message">Delete message</string>
+    <string name="chat_sources">Sources</string>
+    <string name="chat_no_model_title">No model loaded yet</string>
+    <string name="chat_no_model_body">Pick a model file from your phone or download one to start chatting.</string>
+    <string name="chat_go_to_models">Open models</string>
+
+    <string name="suggestion_summarise_day">Summarise my day</string>
+    <string name="suggestion_urgent">What needs my attention?</string>
+    <string name="suggestion_photo">Explain this photo</string>
+    <string name="suggestion_draft_reply">Draft a short reply</string>
+
+    <!-- Digest -->
+    <string name="digest_title">Digest</string>
+    <string name="digest_empty_title">Nothing to catch up on</string>
+    <string name="digest_empty_body">Once notifications start coming in, MarkMaaktAI groups them and writes a short summary for you.</string>
+    <string name="digest_urgent">Urgent</string>
+    <string name="digest_action_items">Action items</string>
+    <string name="digest_ask_about">Ask about this</string>
+    <string name="digest_mark_read">Mark as read</string>
+    <string name="digest_deleted">Summary deleted</string>
+    <string name="digest_undo">Undo</string>
+    <string name="digest_filter_all">All</string>
+    <string name="digest_filter_urgent">Urgent</string>
+    <string name="digest_filter_unread">Unread</string>
+    <string name="digest_source_messages">%1$d messages</string>
+
+    <string name="category_message">Message</string>
+    <string name="category_email">Email</string>
+    <string name="category_calendar">Calendar</string>
+    <string name="category_finance">Finance</string>
+    <string name="category_delivery">Delivery</string>
+    <string name="category_social">Social</string>
+    <string name="category_system">System</string>
+    <string name="category_other">Other</string>
+
+    <!-- Notification actions -->
+    <string name="action_reply_draft">Draft a reply</string>
+    <string name="action_add_to_calendar">Add to calendar</string>
+    <string name="action_open_app">Open</string>
+    <string name="action_dismiss">Dismiss</string>
+    <string name="notification_channel_summaries">Summaries</string>
+    <string name="notification_channel_summaries_desc">Quiet summaries of clustered messages</string>
+    <string name="notification_channel_urgent">Urgent</string>
+    <string name="notification_channel_urgent_desc">Things that look like they need you now</string>
+    <string name="notification_channel_service">Background work</string>
+    <string name="notification_channel_service_desc">Shown while a model is loading or running</string>
+    <string name="notification_working">Working on your messages</string>
+    <string name="notification_reply_ready">Draft ready, check it before you send</string>
+    <string name="notification_reply_sent">Reply sent</string>
+    <string name="notification_reply_failed">That app does not accept replies from here</string>
+
+    <!-- Models -->
+    <string name="models_title">Models</string>
+    <string name="models_text_role">Text and notifications</string>
+    <string name="models_vision_role">Photos and documents</string>
+    <string name="models_speech_role">Speech</string>
+    <string name="models_active">Active</string>
+    <string name="models_import_file">Pick a file from this phone</string>
+    <string name="models_download">Download</string>
+    <string name="models_cancel_download">Cancel</string>
+    <string name="models_delete">Delete</string>
+    <string name="models_downloading">Downloading %1$d%%</string>
+    <string name="models_installed">Ready</string>
+    <string name="models_not_installed">Not on this phone yet</string>
+    <string name="models_size">%1$s on disk</string>
+    <string name="models_hint">Files stay in the app private storage. Nothing is uploaded.</string>
+    <string name="models_ocr_fallback">Text extraction only (OCR)</string>
+    <string name="models_ocr_fallback_desc">Used when no vision model is loaded. Reads text from a photo without an AI model.</string>
+
+    <!-- Settings -->
+    <string name="settings_title">Settings</string>
+    <string name="settings_section_look">Look and feel</string>
+    <string name="settings_dynamic_color">Wallpaper colours</string>
+    <string name="settings_dynamic_color_desc">Use the Material You palette from your wallpaper</string>
+    <string name="settings_pure_black">Pure black</string>
+    <string name="settings_pure_black_desc">True black background for OLED screens</string>
+    <string name="settings_theme">Theme</string>
+    <string name="settings_theme_system">Follow system</string>
+    <string name="settings_theme_light">Light</string>
+    <string name="settings_theme_dark">Dark</string>
+
+    <string name="settings_section_ai">AI</string>
+    <string name="settings_temperature">Creativity</string>
+    <string name="settings_max_tokens">Answer length</string>
+    <string name="settings_gpu">Hardware acceleration</string>
+    <string name="settings_gpu_desc">Run the model on the GPU when the device supports it</string>
+
+    <string name="settings_section_search">Web search</string>
+    <string name="settings_searxng_url">SearXNG address</string>
+    <string name="settings_searxng_url_desc">A privacy friendly search instance. Change it to your own if you host one.</string>
+    <string name="settings_brave_key">Brave Search API key</string>
+    <string name="settings_brave_key_desc">Optional. When filled in, Brave is used instead of SearXNG.</string>
+    <string name="settings_search_results">Results per search</string>
+
+    <string name="settings_section_notifications">Notification intelligence</string>
+    <string name="settings_notification_access">Notification access</string>
+    <string name="settings_notification_access_desc">Needed to read and summarise incoming messages</string>
+    <string name="settings_battery">Ignore battery optimisation</string>
+    <string name="settings_battery_desc">Keeps the reader alive on Sony Xperia and GrapheneOS</string>
+    <string name="settings_assistant">Default assistant</string>
+    <string name="settings_assistant_desc">Open MarkMaaktAI with the power button or the assist gesture</string>
+    <string name="settings_min_words">Ignore messages shorter than</string>
+    <string name="settings_min_words_value">%1$d words</string>
+    <string name="settings_cluster_size">Summarise after</string>
+    <string name="settings_cluster_size_value">%1$d messages</string>
+    <string name="settings_cluster_window">Within</string>
+    <string name="settings_cluster_window_value">%1$d minutes</string>
+    <string name="settings_excluded_apps">Apps to skip</string>
+
+    <string name="settings_section_about">About</string>
+    <string name="settings_version">Version %1$s</string>
+    <string name="settings_check_updates">Check for updates</string>
+    <string name="settings_source">Source code</string>
+    <string name="settings_licence">Licence</string>
+
+    <!-- Updates -->
+    <string name="update_available_title">Version %1$s is out</string>
+    <string name="update_available_body">You are on %1$s</string>
+    <string name="update_download">Download</string>
+    <string name="update_install">Install</string>
+    <string name="update_open_release">Open on GitHub</string>
+    <string name="update_later">Later</string>
+    <string name="update_checking">Checking</string>
+    <string name="update_up_to_date">You are on the newest version</string>
+    <string name="update_failed">Could not reach GitHub</string>
+    <string name="update_downloading">Downloading %1$d%%</string>
+    <string name="update_allow_install">Android needs permission to install the APK</string>
+
+    <!-- Onboarding -->
+    <string name="onboarding_welcome_title">MarkMaaktAI</string>
+    <string name="onboarding_welcome_body">A local AI hub. Chat, read your screen, look at photos and keep your messages under control, all on this phone.</string>
+    <string name="onboarding_privacy_title">Nothing leaves the phone</string>
+    <string name="onboarding_privacy_body">The model runs on your own hardware. Only web search and downloads use the network, and both are yours to switch off.</string>
+    <string name="onboarding_notifications_title">Read your notifications</string>
+    <string name="onboarding_notifications_body">Grant notification access so short bursts of messages can be turned into one calm summary.</string>
+    <string name="onboarding_battery_title">Stay alive in the background</string>
+    <string name="onboarding_battery_body">Sony Xperia and GrapheneOS are strict about background apps. Turning off battery optimisation keeps the reader running.</string>
+    <string name="onboarding_assistant_title">Replace the assistant</string>
+    <string name="onboarding_assistant_body">Set MarkMaaktAI as your default assistant to open it with the power button or the corner swipe.</string>
+    <string name="onboarding_model_title">Pick a model</string>
+    <string name="onboarding_model_body">Choose a file you already have, or download one over Wi-Fi.</string>
+    <string name="onboarding_grant">Grant</string>
+    <string name="onboarding_granted">Granted</string>
+    <string name="onboarding_skip">Skip</string>
+    <string name="onboarding_next">Next</string>
+    <string name="onboarding_start">Start</string>
+
+    <!-- Assistant overlay -->
+    <string name="assist_title">Ask about this screen</string>
+    <string name="assist_hint">Ask anything</string>
+    <string name="assist_screen_context">Using what is on screen</string>
+    <string name="assist_no_screenshot">No screen content available</string>
+    <string name="assist_open_app">Open the full app</string>
+    <string name="assist_close">Close</string>
+
+    <!-- Generic -->
+    <string name="generic_cancel">Cancel</string>
+    <string name="generic_ok">OK</string>
+    <string name="generic_retry">Try again</string>
+    <string name="generic_error">Something went wrong</string>
+    <string name="generic_delete">Delete</string>
+    <string name="generic_back">Back</string>
+    <string name="generic_close">Close</string>
+    <string name="permission_denied">Permission denied</string>
+    <!-- Screenshots -->
+    <string name="nav_shots">Shots</string>
+    <string name="shots_title">Screenshots</string>
+    <string name="shots_rescan">Scan again</string>
+    <string name="shots_indexing">Reading screenshots, %1$d of %2$d</string>
+    <string name="shots_search_hint">Search what is written in them</string>
+    <string name="shots_permission_title">Let it read your screenshots</string>
+    <string name="shots_permission_body">Every screenshot gets read once so you can find it back by what it says. The text stays on this phone and the pictures are never copied.</string>
+    <string name="shots_empty_title">Nothing indexed yet</string>
+    <string name="shots_empty_body">Take a screenshot, or scan again to pick up the ones already on this phone.</string>
+    <string name="shots_category_travel">Travel</string>
+    <string name="shots_category_recipe">Recipes</string>
+    <string name="shots_category_web">Links</string>
+    <string name="shots_ask">Ask about this</string>
+    <string name="shots_open_gallery">Open in gallery</string>
+    <!-- Help tips -->
+    <string name="settings_retention">Keep notifications for</string>
+    <string name="settings_retention_value">%1$d days</string>
+    <string name="help_pure_black">On an OLED screen a black pixel is switched off, so this saves power. Cards stay a shade lighter so the layout does not go flat.</string>
+    <string name="help_temperature">Low keeps answers predictable, high lets the model wander. Around 0.7 suits most things.</string>
+    <string name="help_max_tokens">The ceiling on how long an answer may get. Longer answers take longer to write and use more memory.</string>
+    <string name="help_gpu">Faster on a Snapdragon 8 Gen 3 or a Tensor G4. Turn it off if answers come out garbled or the app closes on you.</string>
+    <string name="help_battery">Android may stop the notification reader to save power. This exempts it, which is what keeps the feature working on Sony and GrapheneOS.</string>
+    <string name="help_assistant">Opens the system screen for picking a default assistant. Choose MarkMaaktAI there to reach it with the power button.</string>
+    <string name="help_min_words">Short replies like ok or thanks are never worth a summary, so anything under this many words is ignored.</string>
+    <string name="help_cluster_size">A summary is only written once this many messages arrive close together, which is what keeps the model from running on every single message.</string>
+    <string name="help_urgent">Only summaries the model flagged as urgent are allowed to make a sound. Everything else lands silently.</string>
+    <string name="help_retention">Stored notifications older than this are deleted. They are only kept so you can ask about them later.</string>
+    <string name="models_free_space">%1$s free on this phone</string>
+    <string name="models_recommended">Recommended</string>
+    <string name="models_experimental">Experimental</string>
+    <string name="onboarding_download_model">Download %1$s (%2$s)</string>
+    <string name="onboarding_have_file">I already have a model file</string>
+    <string name="onboarding_no_account">No account and no sign in. The download starts straight away.</string>
+    <string name="onboarding_works_without">Photos and screenshots are read without any model at all, so you can skip this and come back later.</string>
+</resources>

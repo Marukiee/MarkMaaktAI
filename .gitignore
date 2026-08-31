@@ -1,0 +1,31 @@
+# Gradle
+.gradle/
+build/
+/app/build/
+/captures/
+.cxx/
+
+# Local configuration, never committed
+local.properties
+keystore.properties
+*.jks
+*.keystore
+
+# IDE
+.idea/
+*.iml
+*.ipr
+*.iws
+.DS_Store
+
+# Toolchain and scratch output
+/app/release/
+/app/schemas/*.json.bak
+*.hprof
+*.log
+
+# Downloaded models, far too large for a repository
+/models/
+*.task
+*.litertlm
+*.gguf
