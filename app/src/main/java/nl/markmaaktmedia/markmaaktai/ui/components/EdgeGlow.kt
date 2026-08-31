@@ -13,35 +13,32 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.lerp
 import kotlin.math.PI
+import kotlin.math.min
 import kotlin.math.sin
 
-/** The four sides light can come in from. */
-private enum class Edge { Top, Bottom, Start, End }
-
 /**
- * Light bleeding in from the edges of the screen.
+ * Light travelling around the edge of the screen.
  *
- * This is the assistant's whole visual identity, so it is worth saying what it is
- * doing. Each edge gets its own band of colour fading inward, and three things move
- * independently: how deep the band reaches, how bright it is, and which colour it
- * currently holds. The three run on periods that share no common multiple, so the
- * pattern never lands back where it started and it reads as light rather than as a
- * loop.
+ * This is the assistant's whole visual identity, so it is worth saying what it is and
+ * what it is not. It is a handful of soft coloured lights that drift around the frame
+ * at different speeds, each one sitting just off the edge so only its inner falloff
+ * reaches the screen. Where two overlap the colours mix, which is what makes it look
+ * like light rather than like decoration.
  *
- * Colour is interpolated between palette stops rather than switched, because a hard
- * change between two hues at this size is visible as a flicker. The bottom edge is
- * given the most reach: the sheet lives down there, so that is where the light should
- * look like it is coming from.
+ * It used to be one band per side, drawn as a run of slices so the colour could change
+ * along an edge. That left two faults with no good fix: the slices met in visible
+ * lines, and a band measured as a fraction of the side it sits on is thinner top and
+ * bottom than left and right on a tall screen. Round lights have neither problem. They
+ * are sized against the short side of the display, so the reach is the same wherever
+ * they are, and a radial falloff has nothing to seam against.
  *
- * Drawn as gradients rather than a blurred shape on purpose. A real blur over a full
- * screen surface costs a pass the size of the display every frame, and at this
- * softness a gradient is indistinguishable from one.
+ * Nothing here is a real blur. A blur pass the size of the display every frame is
+ * expensive, and at this softness a radial gradient cannot be told apart from one.
  */
 @Composable
 fun EdgeGlow(
@@ -58,26 +55,28 @@ fun EdgeGlow(
         label = "edgePresence",
     )
 
-    val reach by transition.cycle(durationMillis = 5300, label = "reach")
-    val brightness by transition.cycle(durationMillis = 3700, label = "brightness")
-    val hue by transition.cycle(durationMillis = 11000, label = "hue")
+    // One slow ride around the frame, one faster one, and a breath that belongs to
+    // neither. Periods with no common multiple, so the pattern never repeats itself.
+    val drift by transition.cycle(durationMillis = 19000, label = "drift")
+    val counter by transition.cycle(durationMillis = 12300, label = "counter")
+    val breath by transition.cycle(durationMillis = 5100, label = "breath")
 
     if (presence <= 0.001f || colors.isEmpty()) return
 
     Canvas(modifier = modifier) {
-        Edge.entries.forEachIndexed { index, edge ->
-            // Quarter turn of phase per edge, so the light travels around the frame
-            // instead of every side breathing together.
-            val phase = index * 0.25f
-            val depth = 0.16f + 0.09f * wave(reach + phase)
-            val alpha = (0.42f + 0.26f * wave(brightness + phase * 1.7f)) * presence
-            drawEdge(
-                edge = edge,
-                colours = colors,
-                position = hue + phase,
-                depth = depth * edge.reachScale(),
-                alpha = alpha,
-            )
+        val short = min(size.width, size.height)
+
+        Lights.forEachIndexed { index, light ->
+            // Half the lights ride the slow phase, half the faster one, and each keeps
+            // its own head start. Nothing ever queues up behind anything else.
+            val phase = if (index % 2 == 0) drift else -counter
+            val travel = phase * light.speed + light.offset
+
+            val radius = short * light.radius * (0.88f + 0.12f * wave(breath + light.offset))
+            val alpha = presence * light.alpha * (0.72f + 0.28f * wave(breath * 1.6f + light.offset))
+            val colour = colors.cycleAt(travel * 0.5f + light.offset)
+
+            drawLight(perimeterPoint(travel, radius), radius, colour, alpha)
         }
     }
 }
@@ -93,89 +92,73 @@ fun defaultEdgeColors(): List<Color> = listOf(
     MaterialTheme.colorScheme.primary,
 )
 
-/** How far into the screen each side is allowed to reach. */
-private fun Edge.reachScale(): Float = when (this) {
-    Edge.Bottom -> 1.35f
-    Edge.Top -> 0.85f
-    else -> 1f
-}
+/**
+ * One light: how big, how bright, how fast it goes round, and where it starts.
+ *
+ * Written out rather than generated so the arrangement can be looked at and judged.
+ * Two large slow ones carry the colour, three smaller quicker ones cross them.
+ */
+private class Light(
+    val radius: Float,
+    val alpha: Float,
+    val speed: Float,
+    val offset: Float,
+)
+
+private val Lights = listOf(
+    Light(radius = 0.95f, alpha = 0.50f, speed = 1.0f, offset = 0.00f),
+    Light(radius = 0.80f, alpha = 0.46f, speed = 1.0f, offset = 0.52f),
+    Light(radius = 0.62f, alpha = 0.42f, speed = 1.6f, offset = 0.27f),
+    Light(radius = 0.55f, alpha = 0.38f, speed = 1.6f, offset = 0.71f),
+    Light(radius = 0.48f, alpha = 0.34f, speed = 2.3f, offset = 0.88f),
+)
 
 /**
- * One side of the frame, lit.
- *
- * The band fades inward, and it also changes colour along its length, which is the
- * part that makes this read as light through glass rather than as a coloured border.
- * Two gradients at right angles cannot be expressed as one brush, so the edge is drawn
- * as a run of narrow slices, each fading inward on its own colour. At this alpha the
- * seams between neighbouring slices are not visible, and forty small rectangles cost
- * nothing next to a real blur.
+ * A point on the border of the screen at [travel], with the light pushed outwards so
+ * only its inner half is on screen. Without that push the brightest part of every
+ * light sits in the middle of an edge and the effect reads as five coloured spots.
  */
-private fun DrawScope.drawEdge(
-    edge: Edge,
-    colours: List<Color>,
-    position: Float,
-    depth: Float,
-    alpha: Float,
-) {
-    val vertical = edge == Edge.Top || edge == Edge.Bottom
-    val along = if (vertical) size.width else size.height
-    val band = (if (vertical) size.height else size.width) * depth
-    if (along <= 0f || band <= 0f) return
+private fun DrawScope.perimeterPoint(travel: Float, radius: Float): Offset {
+    val t = ((travel % 1f) + 1f) % 1f
+    val width = size.width
+    val height = size.height
+    val out = radius * PushOut
 
-    val slice = along / Slices
-    for (index in 0 until Slices) {
-        val travel = index / Slices.toFloat()
-        val colour = colours.cycleAt(position + travel * SpreadAcrossEdge)
-        // A touch brighter in the middle of each side, so the corners recede and the
-        // light looks like it has a source rather than an outline.
-        val shaped = alpha * (0.55f + 0.45f * wave(travel * 0.5f - 0.25f))
-        val tinted = colour.copy(alpha = shaped)
-        val clear = colour.copy(alpha = 0f)
-        val start = index * slice
-        // Overdrawn by a pixel, or a seam of background shows between slices.
-        val width = slice + 1f
+    // Perimeter split by side length, so a light keeps its speed round the corners
+    // instead of racing along the short sides.
+    val total = 2f * (width + height)
+    val distance = t * total
 
-        when (edge) {
-            Edge.Top -> drawRect(
-                brush = Brush.verticalGradient(listOf(tinted, clear), startY = 0f, endY = band),
-                topLeft = Offset(start, 0f),
-                size = Size(width, band),
-            )
-
-            Edge.Bottom -> drawRect(
-                brush = Brush.verticalGradient(
-                    listOf(clear, tinted),
-                    startY = size.height - band,
-                    endY = size.height,
-                ),
-                topLeft = Offset(start, size.height - band),
-                size = Size(width, band),
-            )
-
-            Edge.Start -> drawRect(
-                brush = Brush.horizontalGradient(listOf(tinted, clear), startX = 0f, endX = band),
-                topLeft = Offset(0f, start),
-                size = Size(band, width),
-            )
-
-            Edge.End -> drawRect(
-                brush = Brush.horizontalGradient(
-                    listOf(clear, tinted),
-                    startX = size.width - band,
-                    endX = size.width,
-                ),
-                topLeft = Offset(size.width - band, start),
-                size = Size(band, width),
-            )
-        }
+    return when {
+        distance < width -> Offset(distance, -out)
+        distance < width + height -> Offset(width + out, distance - width)
+        distance < 2f * width + height -> Offset(2f * width + height - distance, height + out)
+        else -> Offset(-out, total - distance)
     }
 }
 
-/** Slices per side. Enough that the colour change along an edge looks continuous. */
-private const val Slices = 12
+private fun DrawScope.drawLight(centre: Offset, radius: Float, colour: Color, alpha: Float) {
+    if (radius <= 0f || alpha <= 0.002f) return
+    drawCircle(
+        brush = Brush.radialGradient(
+            // Three stops, not two. A straight fade from full to nothing leaves a
+            // visible ring where the falloff starts; holding most of the colour for
+            // the first half and letting go slowly does not.
+            colorStops = arrayOf(
+                0.0f to colour.copy(alpha = alpha),
+                0.45f to colour.copy(alpha = alpha * 0.55f),
+                1.0f to colour.copy(alpha = 0f),
+            ),
+            center = centre,
+            radius = radius,
+        ),
+        radius = radius,
+        center = centre,
+    )
+}
 
-/** How much of the palette one side travels through, end to end. */
-private const val SpreadAcrossEdge = 0.5f
+/** How far past the edge a light sits, as a share of its own radius. */
+private const val PushOut = 0.55f
 
 /** A 0 to 1 ramp that restarts, used as the phase for everything that drifts. */
 @Composable

@@ -75,13 +75,20 @@ Dit is waar de app op beoordeeld wordt. Nooit op afknijpen.
 - De sessie draait op de **service-context**, en die kent de per-app taal niet. Taal
   expliciet toepassen via `LocaleManager.applicationLocales`, anders staat de assistent
   in het Engels terwijl de app Nederlands is.
-- Het venster moet `SOFT_INPUT_ADJUST_RESIZE` krijgen, anders schuift het hele
-  overlay omhoog zodra het toetsenbord opengaat.
+- Het venster krijgt `SOFT_INPUT_ADJUST_NOTHING`. Het paneel schuift zichzelf opzij met
+  `imePadding()`. Bij pan of resize reageren er twee dingen op hetzelfde toetsenbord en
+  belandt het paneel bovenin het scherm.
+- Vensterinstellingen zetten in `onCreate` **en** in `onShow`. Alleen bij show betekent
+  soms niet.
 - Na een vraag gaat de microfoon dicht. Doorluisteren tijdens het antwoorden is fout.
 - Omhoog slepen aan het handvat schrijft de vraag en het antwoord weg als echt gesprek
   en opent dat gesprek in de app.
-- De randgloed is **kleurrijk**, meerdere tinten per rand. Eén vlakke kleur per rand is
-  te braaf, kijk naar Gemini.
+- De randgloed bestaat uit **ronde lichten** die langs de rand ronddrijven, geen banden
+  per zijde. Banden geven zichtbare naden en zijn boven en onder smaller dan opzij,
+  omdat een band gemeten wordt aan de zijde waar hij op zit. Lichten worden gemeten aan
+  de korte zijde van het scherm, dus overal even ver.
+- Alles in de assistent gaat naar **één gesprek**, vanaf de eerste vraag. Vervolgvragen
+  krijgen de eerdere beurten mee en omhoog slepen opent dat hele gesprek.
 
 ### Swipen om te verwijderen
 
@@ -92,6 +99,9 @@ Dit is waar de app op beoordeeld wordt. Nooit op afknijpen.
   scherp stellen voorbij 35 procent.
 - Haptiek via `GESTURE_THRESHOLD_ACTIVATE` en `GESTURE_THRESHOLD_DEACTIVATE`, in beide
   richtingen, en `CONFIRM` bij het wegvliegen.
+- De twee panelen raken elkaar. Een kier ertussen leest als twee losse dingen.
+- Bij het wegvegen van een paneel niet terugsnappen naar nul. Dan springt het even terug
+  voordat de exit speelt en lijkt het gebaar geweigerd.
 - De gebaarstand hoort op een **stabiele sleutel** (`conversation.id`), niet op het
   item zelf. Op het item betekent dat elke update de state vervangt en de rij
   terugklapt in plaats van terugveert.
@@ -103,6 +113,10 @@ Dit is waar de app op beoordeeld wordt. Nooit op afknijpen.
 - Een spraakmodel is een **map**, geen bestand. Het zip-archief wordt uitgepakt en
   weggegooid, dus zoeken op de bestandsnaam vindt niks en de knop blijft "downloaden"
   zeggen.
+
+- De composer **zweeft** over het gesprek. Tekst en foto's lopen erachterlangs, met een
+  korte fade zodat een letter niet doormidden gesneden wordt. De lijst krijgt onderaan
+  precies de hoogte van de balk als padding.
 
 ## Gebruiksgemak
 

@@ -7,6 +7,7 @@ import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
@@ -50,6 +51,7 @@ import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.res.stringResource
@@ -131,16 +133,40 @@ fun AssistOverlay(
     /*
      * The arrival.
      *
-     * One value drives the whole thing: the sheet comes up from the bottom edge as a
-     * narrow rounded shape, then widens into the full panel as it settles. Sliding a
-     * finished panel up the screen is the ordinary way to do this and reads as a
-     * dialog; growing into place reads as something the phone did, which is the point
-     * of an assistant that answers to the power button.
+     * Three values, not one, because a drop does not move as a single rigid thing.
+     * The rise carries it up from the bottom edge on a loose spring, so it overshoots
+     * and settles. The spread is a second, slower spring that widens it into the full
+     * panel, and running behind the rise is what gives the shape: it arrives narrow,
+     * then relaxes outwards. The badge above it has its own spring again, softer
+     * still, so it trails the panel by a fraction rather than moving in lockstep with
+     * it, which is what made the two read as one printed image sliding up.
      */
-    val entry by animateFloatAsState(
+    val rise by animateFloatAsState(
         targetValue = if (visible) 1f else 0f,
-        animationSpec = if (visible) MarkMotion.spatial() else tween(220, easing = LinearEasing),
-        label = "assistEntry",
+        animationSpec = if (visible) {
+            spring(dampingRatio = 0.52f, stiffness = 260f)
+        } else {
+            tween(200, easing = LinearEasing)
+        },
+        label = "assistRise",
+    )
+    val spread by animateFloatAsState(
+        targetValue = if (visible) 1f else 0f,
+        animationSpec = if (visible) {
+            spring(dampingRatio = 0.62f, stiffness = 150f)
+        } else {
+            tween(180, easing = LinearEasing)
+        },
+        label = "assistSpread",
+    )
+    val badgeEntry by animateFloatAsState(
+        targetValue = if (visible) 1f else 0f,
+        animationSpec = if (visible) {
+            spring(dampingRatio = 0.48f, stiffness = 110f)
+        } else {
+            tween(140, easing = LinearEasing)
+        },
+        label = "assistBadge",
     )
 
     Box(
@@ -154,31 +180,26 @@ fun AssistOverlay(
             modifier = Modifier.fillMaxSize(),
         )
 
-        if (entry > 0.001f) {
+        if (rise > 0.001f) {
             Column(
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
                     .imePadding()
                     .navigationBarsPadding()
-                    .padding(start = 10.dp, end = 10.dp, bottom = 10.dp)
-                    .graphicsLayer {
-                        // Rises from the bottom edge, and widens on the way. The width
-                        // catches up last, which is what gives the drop its shape.
-                        val eased = entry.coerceIn(0f, 1f)
-                        alpha = (eased * 1.8f).coerceAtMost(1f)
-                        translationY = (1f - eased) * 90.dp.toPx()
-                        scaleX = 0.42f + 0.58f * (eased * eased)
-                        scaleY = 0.72f + 0.28f * eased
-                        transformOrigin = androidx.compose.ui.graphics.TransformOrigin(0.5f, 1f)
-                    },
+                    .padding(start = 10.dp, end = 10.dp, bottom = 10.dp),
                 horizontalAlignment = Alignment.Start,
             ) {
-                // Badge and sheet arrive as one piece. Giving the badge its own entry
-                // made it appear out of the middle of the screen a beat after the
-                // sheet, which read as two unrelated things showing up.
                 if (state.hasScreenContext) {
                     Row(
                         modifier = Modifier
+                            .graphicsLayer {
+                                val eased = badgeEntry.coerceIn(0f, 1.2f)
+                                alpha = (eased * 1.6f).coerceIn(0f, 1f)
+                                translationY = (1f - eased) * 34.dp.toPx()
+                                scaleX = 0.7f + 0.3f * eased
+                                scaleY = 0.7f + 0.3f * eased
+                                transformOrigin = TransformOrigin(0.15f, 1f)
+                            }
                             .padding(start = 8.dp, bottom = 10.dp)
                             .clip(PillShape)
                             .background(MaterialTheme.colorScheme.surfaceContainerHigh)
@@ -200,14 +221,26 @@ fun AssistOverlay(
                     }
                 }
 
-                AssistSheet(
-                    state = state,
-                    onQueryChange = onQueryChange,
-                    onAsk = onAsk,
-                    onDictate = onDictate,
-                    onOpenApp = onOpenApp,
-                    onClose = onClose,
-                )
+                Box(
+                    modifier = Modifier.graphicsLayer {
+                        val up = rise.coerceIn(0f, 1.2f)
+                        val wide = spread.coerceIn(0f, 1.2f)
+                        alpha = (up * 2f).coerceIn(0f, 1f)
+                        translationY = (1f - up) * 110.dp.toPx()
+                        scaleX = 0.34f + 0.66f * wide
+                        scaleY = 0.66f + 0.34f * up
+                        transformOrigin = TransformOrigin(0.5f, 1f)
+                    }
+                ) {
+                    AssistSheet(
+                        state = state,
+                        onQueryChange = onQueryChange,
+                        onAsk = onAsk,
+                        onDictate = onDictate,
+                        onOpenApp = onOpenApp,
+                        onClose = onClose,
+                    )
+                }
             }
         }
     }

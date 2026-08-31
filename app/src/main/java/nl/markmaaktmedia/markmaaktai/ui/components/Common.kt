@@ -10,6 +10,7 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -175,7 +176,13 @@ fun HelpTip(
         modifier = modifier
             .requiredSize(22.dp)
             .clip(androidx.compose.foundation.shape.CircleShape)
-            .background(MaterialTheme.colorScheme.surfaceContainerHighest)
+            // Outlined rather than filled, so it matches the switches it sits next to
+            // and whatever is behind the bar shows through instead of a solid disc.
+            .border(
+                width = 1.dp,
+                color = MaterialTheme.colorScheme.outlineVariant,
+                shape = androidx.compose.foundation.shape.CircleShape,
+            )
             .bouncyClickable(onClickLabel = text) { open = true },
         contentAlignment = Alignment.Center,
     ) {
@@ -372,7 +379,8 @@ fun <T> SwipeToDelete(
     val tensionTravel = with(density) { 60.dp.toPx() }
     val tensionMax = with(density) { 20.dp.toPx() }
     val revealFade = with(density) { 56.dp.toPx() }
-    val panelGap = with(density) { 8.dp.toPx() }
+    // The two panels touch. A gap between them reads as two unrelated things.
+    val panelGap = with(density) { 1.dp.toPx() }
 
     AnimatedVisibility(
         visible = !removed,

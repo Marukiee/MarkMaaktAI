@@ -39,6 +39,10 @@ object PromptBuilder {
         preamble, and keep answers short unless detail was asked for. When context is
         supplied below, use it and say so plainly. If the context does not cover the
         question, say what is missing instead of inventing an answer.
+
+        With a photo, describe what is actually in it. Do not name a place, a building,
+        a person or a date unless the picture shows it in writing. A guess stated as a
+        fact is worse than saying the picture does not show it.
     """.trimIndent()
 
     fun buildChat(

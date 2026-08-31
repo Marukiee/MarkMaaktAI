@@ -36,6 +36,8 @@ import kotlinx.coroutines.launch
 import nl.markmaaktmedia.markmaaktai.MainActivity
 import nl.markmaaktmedia.markmaaktai.ai.InferenceEvent
 import nl.markmaaktmedia.markmaaktai.ai.prompt.PromptContext
+import nl.markmaaktmedia.markmaaktai.ai.prompt.PromptTurn
+import nl.markmaaktmedia.markmaaktai.data.repository.ChatRepository
 import nl.markmaaktmedia.markmaaktai.ai.stt.SpeechEvent
 import nl.markmaaktmedia.markmaaktai.data.prefs.UserSettings
 import nl.markmaaktmedia.markmaaktai.di.AssistEntryPoint
@@ -84,11 +86,21 @@ class MarkAssistSession(context: Context) :
     private var answerJob: Job? = null
     private var dictationJob: Job? = null
 
+    /**
+     * The thread this summoning is writing to, created on the first question.
+     *
+     * Every question and answer goes in as it happens, so a follow up has the earlier
+     * turns to work from and opening the app lands on the whole exchange rather than
+     * the last line of it.
+     */
+    private var conversationId: Long? = null
+
     override fun onCreate() {
         super.onCreate()
         savedStateController.performRestore(null)
         lifecycleRegistry.currentState = Lifecycle.State.CREATED
         setUiEnabled(true)
+        applyWindowStyle()
     }
 
     override fun onCreateContentView(): View {
@@ -155,57 +167,66 @@ class MarkAssistSession(context: Context) :
         }.getOrDefault(base)
     }
 
+    /**
+     * Makes the session window behave like an edge to edge surface.
+     *
+     * Not full screen by default, which left the glow clipped to the sheet's own
+     * bounds. Applied on create as well as on show, because the window exists before
+     * the first show and a style that is only set later is a style that is sometimes
+     * not set at all.
+     */
+    private fun applyWindowStyle() {
+        runCatching {
+            val w = window?.window ?: return
+            w.setLayout(
+                android.view.ViewGroup.LayoutParams.MATCH_PARENT,
+                android.view.ViewGroup.LayoutParams.MATCH_PARENT,
+            )
+            w.setBackgroundDrawable(android.graphics.drawable.ColorDrawable(0))
+            androidx.core.view.WindowCompat.setDecorFitsSystemWindows(w, false)
+
+            /*
+             * The window does nothing when the keyboard opens, and the sheet moves
+             * itself out of the way instead.
+             *
+             * Anything else means two things react to the same keyboard: the system
+             * pans or resizes the window, the layout adds the keyboard inset on top of
+             * that, and the sheet ends up at the top of the screen.
+             */
+            w.setSoftInputMode(
+                android.view.WindowManager.LayoutParams.SOFT_INPUT_ADJUST_NOTHING or
+                    android.view.WindowManager.LayoutParams.SOFT_INPUT_STATE_UNCHANGED
+            )
+
+            /*
+             * The navigation bar stays, the grey strip behind it does not.
+             *
+             * Android draws a translucent scrim behind the bar when a window is
+             * see-through, to keep the buttons legible. Over the glow that reads as a
+             * dirty band across the bottom of the screen, and the sheet floats clear of
+             * the bar anyway, so it is turned off.
+             */
+            w.navigationBarColor = android.graphics.Color.TRANSPARENT
+            w.statusBarColor = android.graphics.Color.TRANSPARENT
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
+                w.isNavigationBarContrastEnforced = false
+                w.isStatusBarContrastEnforced = false
+            }
+        }
+    }
+
     override fun onShow(args: Bundle?, showFlags: Int) {
         super.onShow(args, showFlags)
         lifecycleRegistry.currentState = Lifecycle.State.RESUMED
 
-        /*
-         * The session window is not full screen by default, which left the glow
-         * clipped to the sheet's own bounds and the sheet sitting under the gesture
-         * bar. Taking the whole display and drawing behind the system bars is what
-         * lets the light reach all four edges.
-         */
-        runCatching {
-            window?.window?.let { w ->
-                w.setLayout(
-                    android.view.ViewGroup.LayoutParams.MATCH_PARENT,
-                    android.view.ViewGroup.LayoutParams.MATCH_PARENT,
-                )
-                w.setBackgroundDrawable(android.graphics.drawable.ColorDrawable(0))
-                androidx.core.view.WindowCompat.setDecorFitsSystemWindows(w, false)
-
-                /*
-                 * Resize, not pan. The default for this window pushes the whole thing
-                 * up when the keyboard opens, which threw the sheet to the top of the
-                 * screen instead of letting it rest on the keyboard.
-                 */
-                w.setSoftInputMode(
-                    android.view.WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE or
-                        android.view.WindowManager.LayoutParams.SOFT_INPUT_STATE_UNCHANGED
-                )
-
-                /*
-                 * The navigation bar stays, the grey strip behind it does not.
-                 *
-                 * Android draws a translucent scrim behind the bar when a window is
-                 * see-through, to keep the buttons legible. Over the glow that reads as
-                 * a dirty band across the bottom of the screen, and the sheet floats
-                 * clear of the bar anyway, so it is turned off.
-                 */
-                w.navigationBarColor = android.graphics.Color.TRANSPARENT
-                w.statusBarColor = android.graphics.Color.TRANSPARENT
-                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
-                    w.isNavigationBarContrastEnforced = false
-                    w.isStatusBarContrastEnforced = false
-                }
-            }
-        }
+        applyWindowStyle()
 
         // The counter is what restarts the entry animation. Without it a second
         // summoning reuses the composition and the sheet is simply there.
         state.value = AssistUiState(showId = state.value.showId + 1)
         screenText = ""
         structureText = ""
+        conversationId = null
 
         scope.launch { startListeningIfPossible() }
     }
@@ -301,9 +322,39 @@ class MarkAssistSession(context: Context) :
                     level = 0f,
                 )
             }
+
+            val chats = entryPoint.chats()
+            // Written down before the model starts, so the thread is real even if the
+            // answer fails or the sheet is closed halfway through.
+            val threadId = conversationId ?: runCatching {
+                chats.createConversation(question.take(60))
+            }.getOrNull()
+            conversationId = threadId
+
+            val history = threadId
+                ?.let { runCatching { chats.history(it) }.getOrDefault(emptyList()) }
+                .orEmpty()
+                .filter { it.content.isNotBlank() }
+                .map { entity ->
+                    PromptTurn(
+                        role = if (entity.role == ChatRepository.ROLE_USER) PromptTurn.Role.USER
+                        else PromptTurn.Role.ASSISTANT,
+                        text = entity.content,
+                    )
+                }
+
+            var assistantMessageId: Long? = null
+            if (threadId != null) {
+                runCatching {
+                    val parent = chats.currentLeafId(threadId)
+                    val userId = chats.addUserMessage(threadId, question, null, parent)
+                    assistantMessageId = chats.startAssistantMessage(threadId, userId)
+                }
+            }
+
             val builder = StringBuilder()
             entryPoint.orchestrator().chat(
-                history = emptyList(),
+                history = history,
                 question = question,
                 context = PromptContext(screenText = bestScreenText()),
             ).collect { event ->
@@ -321,6 +372,10 @@ class MarkAssistSession(context: Context) :
 
                     else -> Unit
                 }
+            }
+
+            assistantMessageId?.let { id ->
+                runCatching { chats.updateAssistantMessage(id, state.value.answer) }
             }
             state.update { it.copy(isAnswering = false) }
         }
@@ -370,49 +425,26 @@ class MarkAssistSession(context: Context) :
     }
 
     /**
-     * Hands the exchange over to the app and opens it on that thread.
+     * Hands the thread over to the app and opens it there.
      *
-     * Dragging the sheet up means "carry on with this", so arriving at an empty chat
-     * and having to ask again is the wrong answer. The question and the answer are
-     * written to a real conversation first, and the app is told which one to open.
-     * With nothing asked yet there is nothing to carry, so it simply opens.
+     * Everything asked in the sheet is already written to a conversation as it
+     * happens, so this is only a matter of saying which one. With nothing asked yet
+     * there is nothing to carry, and the app simply opens.
      */
     private fun openFullApp() {
-        val question = state.value.askedQuestion
-        val answer = state.value.answer
+        val threadId = conversationId
         state.update { it.copy(closing = true) }
 
+        val intent = Intent(context, MainActivity::class.java)
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+        if (threadId != null) {
+            intent.putExtra(MainActivity.EXTRA_CONVERSATION_ID, threadId)
+        }
+        runCatching { context.startActivity(intent) }
         scope.launch {
-            val conversationId = if (question.isNotBlank()) {
-                runCatching { saveExchange(question, answer) }.getOrNull()
-            } else {
-                null
-            }
-
-            val intent = Intent(context, MainActivity::class.java)
-                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
-            if (conversationId != null) {
-                intent.putExtra(MainActivity.EXTRA_CONVERSATION_ID, conversationId)
-            }
-            runCatching { context.startActivity(intent) }
+            kotlinx.coroutines.delay(120)
             hide()
         }
-    }
-
-    private suspend fun saveExchange(question: String, answer: String): Long {
-        val chats = entryPoint.chats()
-        val conversationId = chats.createConversation(question.take(60))
-        val userId = chats.addUserMessage(
-            conversationId = conversationId,
-            text = question,
-            imagePath = null,
-            parentId = null,
-        )
-        if (answer.isNotBlank()) {
-            val assistantId = chats.startAssistantMessage(conversationId, userId)
-            chats.updateAssistantMessage(assistantId, answer)
-        }
-        return conversationId
     }
 
     /**

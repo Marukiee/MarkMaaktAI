@@ -28,6 +28,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -61,6 +62,7 @@ import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.runtime.rememberCoroutineScope
 import kotlinx.coroutines.launch
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -130,6 +132,13 @@ fun ChatScreen(
             onNewConversation = viewModel::newConversation,
         )
 
+        // The transcript runs the full height and the composer floats over it, so a
+        // photo or a long answer passes behind the bar instead of stopping dead at a
+        // solid edge. The list is padded by however tall the bar turned out to be, so
+        // nothing is ever stuck underneath it.
+        var composerHeight by remember { mutableIntStateOf(0) }
+        val composerInset = with(LocalDensity.current) { composerHeight.toDp() }
+
         Box(modifier = Modifier.weight(1f)) {
             // Keyed on the thread, and wrapping the empty state too, so starting a new
             // chat is a transition rather than the transcript blinking out.
@@ -148,12 +157,13 @@ fun ChatScreen(
                         hasModel = state.hasTextModel,
                         onSuggestion = { viewModel.send(it) },
                         onOpenModels = onOpenModels,
+                        bottomInset = composerInset,
                     )
                 } else {
                     LazyColumn(
                         state = listState,
                         modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(top = 8.dp, bottom = 16.dp),
+                        contentPadding = PaddingValues(top = 8.dp, bottom = composerInset + 8.dp),
                     ) {
                         items(messages, key = { it.id }) { message ->
                             MessageBubble(
@@ -172,11 +182,31 @@ fun ChatScreen(
                     }
                 }
             }
-        }
 
-        WorkStatusLine(state = state)
+        Column(
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .onSizeChanged { composerHeight = it.height },
+        ) {
+            // A short fade rather than a hard line. Text that scrolls under the bar
+            // thins out instead of being cut through the middle of a letter.
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(28.dp)
+                    .background(
+                        androidx.compose.ui.graphics.Brush.verticalGradient(
+                            listOf(
+                                MaterialTheme.colorScheme.surface.copy(alpha = 0f),
+                                MaterialTheme.colorScheme.surface.copy(alpha = 0.9f),
+                            )
+                        )
+                    )
+            )
 
-        ChatComposer(
+            WorkStatusLine(state = state)
+
+            ChatComposer(
             state = state,
             onInputChange = viewModel::onInputChange,
             onSend = { viewModel.send() },
@@ -202,8 +232,10 @@ fun ChatScreen(
              * discontinuous in between: the keyboard carries it down, and it comes to
              * rest on the navigation bar.
              */
-            modifier = Modifier.padding(bottom = composerBottomInset),
-        )
+                modifier = Modifier.padding(bottom = composerBottomInset),
+            )
+        }
+        }
     }
 
     if (state.needsVisionModel) {
@@ -316,6 +348,7 @@ private fun ChatEmptyState(
     hasModel: Boolean,
     onSuggestion: (String) -> Unit,
     onOpenModels: () -> Unit,
+    bottomInset: androidx.compose.ui.unit.Dp,
 ) {
     if (!hasModel) {
         EmptyState(
@@ -345,7 +378,9 @@ private fun ChatEmptyState(
         modifier = Modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
-            .padding(horizontal = 28.dp, vertical = 24.dp),
+            // Clears the floating composer, so the last suggestion is reachable rather
+            // than sitting under the bar.
+            .padding(start = 28.dp, end = 28.dp, top = 24.dp, bottom = bottomInset + 24.dp),
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
@@ -503,8 +538,12 @@ private fun ConversationPanel(
                             },
                             onDragEnd = {
                                 if (-panelOffset.value > panelWidth * 0.25f) {
+                                    // Left where the finger put it. Snapping back to
+                                    // zero here made the panel jump home for a moment
+                                    // before the exit had a chance to play, so it
+                                    // looked like the swipe had been refused. The
+                                    // offset goes with the composition on the way out.
                                     onDismiss()
-                                    panelScope.launch { panelOffset.snapTo(0f) }
                                 } else {
                                     panelScope.launch {
                                         panelOffset.animateTo(0f, MarkMotion.spatial())
