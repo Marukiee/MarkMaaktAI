@@ -191,8 +191,8 @@
     <string name="shots_rescan">Opnieuw scannen</string>
     <string name="shots_indexing">Screenshots aan het lezen, %1$d van %2$d</string>
     <string name="shots_search_hint">Zoek op wat erin staat</string>
-    <string name="shots_permission_title">Laat je screenshots lezen</string>
-    <string name="shots_permission_body">Elke screenshot wordt een keer gelezen zodat je hem terugvindt op wat erin staat. De tekst blijft op deze telefoon en de foto\'s worden nooit gekopieerd.</string>
+    <string name="shots_permission_title">Vind elke screenshot terug</string>
+    <string name="shots_permission_body">Zoek je screenshots op wat erin staat. Elke screenshot wordt een keer gelezen op deze telefoon, en de foto\'s blijven gewoon in je galerij.</string>
     <string name="shots_empty_title">Nog niets ingelezen</string>
     <string name="shots_empty_body">Maak een screenshot, of scan opnieuw om de bestaande op te halen.</string>
     <string name="shots_category_travel">Reizen</string>
@@ -254,4 +254,5 @@
     <string name="settings_about_summary">Versie, broncode, crashrapport</string>
     <string name="onboarding_permissions_title">Een paar rechten</string>
     <string name="onboarding_permissions_body">De microfoon om te praten, de camera en je foto\'s om iets over een afbeelding te vragen, en meldingen zodat samenvattingen je bereiken. Weiger er gerust een, de rest blijft werken.</string>
+    <string name="help_title">Wat dit doet</string>
 </resources>

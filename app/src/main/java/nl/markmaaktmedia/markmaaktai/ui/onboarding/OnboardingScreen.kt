@@ -5,14 +5,10 @@ import android.net.Uri
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInHorizontally
-import androidx.compose.animation.slideOutHorizontally
-import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -32,7 +28,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -43,6 +38,7 @@ import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.launch
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import nl.markmaaktmedia.markmaaktai.R
@@ -82,8 +78,10 @@ fun OnboardingScreen(
     settingsViewModel: SettingsViewModel = hiltViewModel(),
     modelsViewModel: ModelsViewModel = hiltViewModel(),
 ) {
-    var step by remember { mutableIntStateOf(0) }
-    var forward by remember { mutableStateOf(true) }
+    val pages = onboardingPages()
+    val pagerState = androidx.compose.foundation.pager.rememberPagerState(pageCount = { pages.size })
+    val scope = androidx.compose.runtime.rememberCoroutineScope()
+    val step = pagerState.currentPage
     val access by settingsViewModel.access.collectAsStateWithLifecycle()
     val downloads by modelsViewModel.downloads.collectAsStateWithLifecycle()
     val modelState by modelsViewModel.uiState.collectAsStateWithLifecycle()
@@ -116,13 +114,12 @@ fun OnboardingScreen(
         contract = ActivityResultContracts.OpenDocument(),
     ) { uri: Uri? -> uri?.let { modelsViewModel.importFromUri(it, ModelRole.TEXT) } }
 
-    val pages = onboardingPages()
+    fun goTo(target: Int) {
+        scope.launch { pagerState.animateScrollToPage(target.coerceIn(0, pages.lastIndex)) }
+    }
 
     fun goBack() {
-        if (step > 0) {
-            forward = false
-            step--
-        }
+        if (step > 0) goTo(step - 1)
     }
 
     // The system back gesture walks the pages, and only leaves once there is nowhere
@@ -162,14 +159,8 @@ fun OnboardingScreen(
             )
         }
 
-        AnimatedContent(
-            targetState = step,
-            transitionSpec = {
-                val direction = if (forward) 1 else -1
-                (slideInHorizontally { it / 4 * direction } + fadeIn())
-                    .togetherWith(slideOutHorizontally { -it / 4 * direction } + fadeOut())
-            },
-            label = "onboardingStep",
+        androidx.compose.foundation.pager.HorizontalPager(
+            state = pagerState,
             modifier = Modifier.weight(1f),
         ) { index ->
             val page = pages[index]
@@ -291,19 +282,15 @@ fun OnboardingScreen(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween,
         ) {
-            StepDots(count = pages.size, current = step)
+            StepDots(count = pages.size, current = step, onSelect = ::goTo)
             PrimaryPillButton(
                 label = stringResource(
                     if (step == pages.lastIndex) R.string.onboarding_start else R.string.onboarding_next
                 ),
-                icon = if (step == pages.lastIndex) MarkIcons.Check else MarkIcons.ChevronRight,
+                icon = if (step == pages.lastIndex) MarkIcons.Check else null,
+                trailingIcon = if (step == pages.lastIndex) null else MarkIcons.ChevronRight,
                 onClick = {
-                    if (step == pages.lastIndex) {
-                        onFinished()
-                    } else {
-                        forward = true
-                        step++
-                    }
+                    if (step == pages.lastIndex) onFinished() else goTo(step + 1)
                 },
             )
         }
@@ -459,7 +446,7 @@ private fun DownloadProgressBlock(fraction: Float) {
 
 /** Progress dots, where the current one is a stretched pill rather than a bigger dot. */
 @Composable
-private fun StepDots(count: Int, current: Int) {
+private fun StepDots(count: Int, current: Int, onSelect: (Int) -> Unit) {
     Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
         repeat(count) { index ->
             val active = index == current
@@ -476,6 +463,7 @@ private fun StepDots(count: Int, current: Int) {
                         if (active) MaterialTheme.colorScheme.primary
                         else MaterialTheme.colorScheme.outlineVariant
                     )
+                    .bouncyClickable(pressedScale = 0.8f) { onSelect(index) }
             )
         }
     }

@@ -21,7 +21,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.graphics.drawscope.scale
@@ -92,11 +91,7 @@ fun PillSpinner(
         scale(if (active) breath else 1f) {
             rotate(degrees = REST_ANGLE + if (active) rotation else 0f) {
                 drawRoundRect(
-                    brush = Brush.linearGradient(
-                        colors = listOf(color, color.copy(alpha = 0.72f)),
-                        start = topLeft,
-                        end = Offset(topLeft.x + capsuleWidth, topLeft.y + capsuleHeight),
-                    ),
+                    color = color,
                     topLeft = topLeft,
                     size = Size(capsuleWidth, capsuleHeight),
                     cornerRadius = CornerRadius(capsuleHeight / 2f),

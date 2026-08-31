@@ -203,8 +203,8 @@
     <string name="shots_rescan">Scan again</string>
     <string name="shots_indexing">Reading screenshots, %1$d of %2$d</string>
     <string name="shots_search_hint">Search what is written in them</string>
-    <string name="shots_permission_title">Let it read your screenshots</string>
-    <string name="shots_permission_body">Every screenshot gets read once so you can find it back by what it says. The text stays on this phone and the pictures are never copied.</string>
+    <string name="shots_permission_title">Find any screenshot again</string>
+    <string name="shots_permission_body">Search your screenshots by what is written in them. Each one is read once on this phone, and the pictures stay in your gallery.</string>
     <string name="shots_empty_title">Nothing indexed yet</string>
     <string name="shots_empty_body">Take a screenshot, or scan again to pick up the ones already on this phone.</string>
     <string name="shots_category_travel">Travel</string>
@@ -268,4 +268,5 @@
     <string name="settings_about_summary">Version, source, crash report</string>
     <string name="onboarding_permissions_title">A few permissions</string>
     <string name="onboarding_permissions_body">The microphone for speaking, the camera and your photos for asking about an image, and notifications so summaries can reach you. Say no to any of them and the rest still works.</string>
+    <string name="help_title">What this does</string>
 </resources>

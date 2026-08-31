@@ -36,6 +36,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.painter.Painter
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -141,55 +142,57 @@ fun MarkIconButton(
 /**
  * The question mark next to a setting that needs a sentence of explanation.
  *
- * Tapping it opens the sentence in place rather than a dialog, so reading it does not
- * cost you your place on the page. Settings that explain themselves do not get one:
- * an app where every row has a help button is an app that failed to name its rows.
+ * It opens a small panel rather than expanding in place. Expanding pushed every row
+ * below it down the screen, so reading one explanation moved everything the user was
+ * looking at, and closing it moved it all back. A panel leaves the page alone.
+ *
+ * Settings that explain themselves do not get one: a page where every row has a help
+ * button is a page that failed to name its rows.
  */
 @Composable
 fun HelpTip(
     text: String,
     modifier: Modifier = Modifier,
+    title: String? = null,
 ) {
     var open by remember { mutableStateOf(false) }
     val rotation by animateFloatAsState(
-        targetValue = if (open) 135f else 0f,
+        targetValue = if (open) 90f else 0f,
         animationSpec = MarkMotion.springy(),
         label = "helpTipRotation",
     )
 
-    Column(modifier = modifier) {
-        Box(
+    Box(
+        modifier = modifier
+            .size(22.dp)
+            .clip(PillShape)
+            .background(MaterialTheme.colorScheme.surfaceContainerHighest)
+            .bouncyClickable(onClickLabel = text) { open = true },
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(
+            painter = MarkIcons.Help,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier
-                .size(22.dp)
-                .clip(PillShape)
-                .background(MaterialTheme.colorScheme.surfaceContainerHighest)
-                .bouncyClickable(onClickLabel = text) { open = !open },
-            contentAlignment = Alignment.Center,
-        ) {
-            Icon(
-                painter = if (open) MarkIcons.Close else MarkIcons.Help,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier
-                    .size(12.dp)
-                    .graphicsLayer { rotationZ = if (open) 0f else rotation },
-            )
-        }
+                .size(12.dp)
+                .graphicsLayer { rotationZ = rotation },
+        )
+    }
 
-        AnimatedVisibility(
-            visible = open,
-            enter = expandVertically(animationSpec = MarkMotion.sizeSpring()) +
-                fadeIn(animationSpec = MarkMotion.fadeSpec()),
-            exit = shrinkVertically(animationSpec = MarkMotion.sizeSpring()) +
-                fadeOut(animationSpec = MarkMotion.fadeSpec()),
-        ) {
-            Text(
-                text = text,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(top = 8.dp, end = 8.dp),
-            )
-        }
+    if (open) {
+        MarkDialog(
+            title = title ?: stringResource(nl.markmaaktmedia.markmaaktai.R.string.help_title),
+            body = text,
+            icon = MarkIcons.Idea,
+            onDismiss = { open = false },
+            actions = {
+                PrimaryPillButton(
+                    label = stringResource(nl.markmaaktmedia.markmaaktai.R.string.generic_ok),
+                    onClick = { open = false },
+                )
+            },
+        )
     }
 }
 
@@ -263,6 +266,7 @@ fun EmptyState(
     title: String,
     body: String,
     modifier: Modifier = Modifier,
+    icon: Painter? = null,
     action: @Composable (() -> Unit)? = null,
 ) {
     Column(
@@ -272,7 +276,24 @@ fun EmptyState(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
     ) {
-        PillMark(size = 54.dp)
+        if (icon != null) {
+            Box(
+                modifier = Modifier
+                    .size(80.dp)
+                    .clip(PillShape)
+                    .background(MaterialTheme.colorScheme.primaryContainer),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    painter = icon,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                    modifier = Modifier.size(34.dp),
+                )
+            }
+        } else {
+            PillMark(size = 54.dp)
+        }
         Spacer(Modifier.height(20.dp))
         Text(
             text = title,
@@ -416,6 +437,8 @@ fun PrimaryPillButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     icon: Painter? = null,
+    /** Sits after the label. For a button that moves you forward, this is the one. */
+    trailingIcon: Painter? = null,
     enabled: Boolean = true,
     container: Color = MaterialTheme.colorScheme.primary,
     content: Color = MaterialTheme.colorScheme.onPrimary,
@@ -443,6 +466,14 @@ fun PrimaryPillButton(
             color = if (enabled) content else MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center,
         )
+        if (trailingIcon != null) {
+            Icon(
+                painter = trailingIcon,
+                contentDescription = null,
+                tint = if (enabled) content else MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(18.dp),
+            )
+        }
     }
 }
 

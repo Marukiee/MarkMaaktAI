@@ -9,6 +9,8 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.background
@@ -26,6 +28,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -54,7 +57,6 @@ import nl.markmaaktmedia.markmaaktai.data.db.ConversationEntity
 import nl.markmaaktmedia.markmaaktai.ui.components.EmptyState
 import nl.markmaaktmedia.markmaaktai.ui.components.MarkErrorDialog
 import nl.markmaaktmedia.markmaaktai.ui.components.MarkIconButton
-import nl.markmaaktmedia.markmaaktai.ui.components.PillMark
 import nl.markmaaktmedia.markmaaktai.ui.components.PrimaryPillButton
 import nl.markmaaktmedia.markmaaktai.ui.components.SuggestionChip
 import nl.markmaaktmedia.markmaaktai.ui.components.SwipeToDelete
@@ -233,6 +235,7 @@ private fun ChatEmptyState(
         EmptyState(
             title = stringResource(R.string.chat_no_model_title),
             body = stringResource(R.string.chat_no_model_body),
+            icon = MarkIcons.Model,
             action = {
                 PrimaryPillButton(
                     label = stringResource(R.string.chat_go_to_models),
@@ -257,7 +260,20 @@ private fun ChatEmptyState(
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        PillMark(size = 56.dp)
+        Box(
+            modifier = Modifier
+                .size(88.dp)
+                .clip(androidx.compose.foundation.shape.CircleShape)
+                .background(MaterialTheme.colorScheme.primaryContainer),
+            contentAlignment = Alignment.Center,
+        ) {
+            androidx.compose.material3.Icon(
+                painter = MarkIcons.SparkleFilled,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                modifier = Modifier.size(38.dp),
+            )
+        }
         VSpace(20)
         Text(
             text = stringResource(R.string.chat_empty_title),
@@ -305,16 +321,24 @@ private fun ConversationPanel(
     onDelete: (Long) -> Unit,
     onDismiss: () -> Unit,
 ) {
+    var shown by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) { shown = true }
+
     val scrimAlpha by animateFloatAsState(
-        targetValue = if (open) 0.45f else 0f,
+        targetValue = if (shown) 0.45f else 0f,
         animationSpec = MarkMotion.fadeSpec(),
         label = "panelScrim",
     )
 
-    if (!open && scrimAlpha <= 0.001f) return
+    if (!open) return
 
-    BackHandler(enabled = open, onBack = onDismiss)
-
+    androidx.compose.ui.window.Dialog(
+        onDismissRequest = onDismiss,
+        properties = androidx.compose.ui.window.DialogProperties(
+            usePlatformDefaultWidth = false,
+            decorFitsSystemWindows = false,
+        ),
+    ) {
     Box(modifier = Modifier.fillMaxSize()) {
         Box(
             modifier = Modifier
@@ -328,9 +352,9 @@ private fun ConversationPanel(
         )
 
         AnimatedVisibility(
-            visible = open,
-            enter = slideInHorizontally(animationSpec = MarkMotion.spatial()) { -it },
-            exit = slideOutHorizontally(animationSpec = MarkMotion.spatial()) { -it },
+            visible = shown,
+            enter = slideInHorizontally(animationSpec = MarkMotion.spatial()) { -it } + fadeIn(),
+            exit = slideOutHorizontally(animationSpec = MarkMotion.spatial()) { -it } + fadeOut(),
             modifier = Modifier.align(Alignment.CenterStart),
         ) {
             Column(
@@ -410,6 +434,7 @@ private fun ConversationPanel(
                 }
             }
         }
+    }
     }
 }
 

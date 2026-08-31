@@ -76,24 +76,10 @@ class ModelsViewModel @Inject constructor(
      * and the only reason to have downloaded it was to use it.
      */
     fun download(spec: ModelSpec) {
-        // Handed to the repository so the transfer outlives this screen. The user
-        // starting a download in onboarding and immediately pressing Next is the
+        // Handed to WorkManager, which waits for a real connection and survives the
+        // app being closed. Starting a download and then leaving onboarding is the
         // normal case, not an edge one.
-        repository.startDownload(spec) { result ->
-            result.onSuccess { file ->
-                repository.activate(
-                    InstalledModel(
-                        fileName = file.name,
-                        path = file.absolutePath,
-                        sizeBytes = file.length(),
-                        role = spec.role,
-                        isActive = true,
-                    ),
-                    spec.role,
-                )
-            }
-            refresh()
-        }
+        repository.startDownload(spec)
     }
 
     fun cancelDownload(spec: ModelSpec) {

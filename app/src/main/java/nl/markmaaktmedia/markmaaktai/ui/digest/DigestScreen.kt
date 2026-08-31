@@ -78,6 +78,8 @@ fun DigestScreen(
                 EmptyState(
                     title = stringResource(R.string.digest_empty_title),
                     body = stringResource(R.string.digest_empty_body),
+                    // A tick, because an empty inbox is a result, not an absence.
+                    icon = MarkIcons.CheckCircle,
                 )
             } else {
                 LazyColumn(

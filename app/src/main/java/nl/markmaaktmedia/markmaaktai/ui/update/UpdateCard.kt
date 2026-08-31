@@ -49,7 +49,7 @@ fun UpdateCard(
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val visible = state !is UpdateState.Idle
+    val visible = state !is UpdateState.Idle && state !is UpdateState.UpToDate
 
     AnimatedVisibility(
         visible = visible,
@@ -75,19 +75,6 @@ fun UpdateCard(
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onPrimaryContainer,
                     )
-                }
-
-                is UpdateState.UpToDate -> Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                ) {
-                    Text(
-                        text = stringResource(R.string.update_up_to_date),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onPrimaryContainer,
-                        modifier = Modifier.weight(1f),
-                    )
-                    UpdateButton(stringResource(R.string.generic_close), onDismiss)
                 }
 
                 is UpdateState.Available -> Column {
@@ -161,7 +148,7 @@ fun UpdateCard(
                     UpdateButton(stringResource(R.string.generic_retry), onCheck)
                 }
 
-                UpdateState.Idle -> Unit
+                UpdateState.Idle, UpdateState.UpToDate -> Unit
             }
         }
     }

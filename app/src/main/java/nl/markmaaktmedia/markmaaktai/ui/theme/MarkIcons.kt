@@ -58,6 +58,7 @@ object MarkIcons {
     val History: Painter @Composable get() = painterResource(R.drawable.sym_history)
     val NewChat: Painter @Composable get() = painterResource(R.drawable.sym_add_comment)
     val Sparkle: Painter @Composable get() = painterResource(R.drawable.sym_auto_awesome)
+    val SparkleFilled: Painter @Composable get() = painterResource(R.drawable.sym_auto_awesome_filled)
 
     // Digest and screenshots
     val Urgent: Painter @Composable get() = painterResource(R.drawable.sym_priority_high)

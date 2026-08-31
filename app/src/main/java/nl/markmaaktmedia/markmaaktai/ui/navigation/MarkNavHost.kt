@@ -84,6 +84,17 @@ fun MarkNavHost(
         ),
     )
 
+    /*
+     * Back walks back up the app before it leaves it. Models closes first, then any
+     * tab other than chat returns to chat, and only from chat does back actually exit.
+     * Without this, back on the settings tab dropped straight out of the app, which
+     * reads as a crash rather than as navigation.
+     */
+    androidx.activity.compose.BackHandler(enabled = modelsOpen) { modelsOpen = false }
+    androidx.activity.compose.BackHandler(enabled = !modelsOpen && tab != MarkTab.Chat) {
+        tab = MarkTab.Chat
+    }
+
     Surface(
         modifier = modifier.fillMaxSize(),
         color = MaterialTheme.colorScheme.background,

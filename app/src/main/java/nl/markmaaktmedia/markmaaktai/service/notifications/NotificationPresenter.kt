@@ -152,7 +152,12 @@ class NotificationPresenter @Inject constructor(
      * not an event, and it should never make a sound or push anything else down.
      */
     fun postDownloadProgress(title: String, percent: Int) {
-        val notification = NotificationCompat.Builder(context, CHANNEL_SERVICE)
+        notify(DOWNLOAD_ID, downloadNotification(title, percent))
+    }
+
+    /** The same notification as an object, for a worker that runs in the foreground. */
+    fun downloadNotification(title: String, percent: Int): Notification =
+        NotificationCompat.Builder(context, CHANNEL_SERVICE)
             .setSmallIcon(R.drawable.ic_capsule)
             .setContentTitle(title)
             .setContentText(context.getString(R.string.models_downloading, percent))
@@ -163,8 +168,6 @@ class NotificationPresenter @Inject constructor(
             .setPriority(NotificationCompat.PRIORITY_LOW)
             .setContentIntent(openAppIntent())
             .build()
-        notify(DOWNLOAD_ID, notification)
-    }
 
     /** Replaces the progress bar with a one line result, then lets it time out. */
     fun postDownloadFinished(title: String, success: Boolean) {
@@ -293,7 +296,7 @@ class NotificationPresenter @Inject constructor(
 
         const val FOREGROUND_ID = 4711
         private const val TRANSIENT_ID = 4712
-        private const val DOWNLOAD_ID = 4713
+        const val DOWNLOAD_ID = 4713
         private const val TRANSIENT_TIMEOUT_MS = 6_000L
 
         fun draftRequestCode(summaryId: Long): Int = (summaryId.toInt() * 31) + 1

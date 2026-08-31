@@ -150,6 +150,7 @@ fun ShotsScreen(
                 !state.hasPermission -> EmptyState(
                     title = stringResource(R.string.shots_permission_title),
                     body = stringResource(R.string.shots_permission_body),
+                    icon = MarkIcons.Search,
                     action = {
                         Box(
                             modifier = Modifier
@@ -172,6 +173,7 @@ fun ShotsScreen(
                 shots.isEmpty() -> EmptyState(
                     title = stringResource(R.string.shots_empty_title),
                     body = stringResource(R.string.shots_empty_body),
+                    icon = MarkIcons.Image,
                 )
 
                 else -> LazyVerticalGrid(
