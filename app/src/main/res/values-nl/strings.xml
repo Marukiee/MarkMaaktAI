@@ -219,4 +219,5 @@
     <string name="onboarding_have_file">Ik heb al een modelbestand</string>
     <string name="onboarding_no_account">Geen account en geen inloggen. De download begint meteen.</string>
     <string name="onboarding_works_without">Foto\'s en screenshots worden zonder model gelezen, dus je kunt dit overslaan en later terugkomen.</string>
+    <string name="chat_phone_context">Gebruik mijn telefoon</string>
 </resources>

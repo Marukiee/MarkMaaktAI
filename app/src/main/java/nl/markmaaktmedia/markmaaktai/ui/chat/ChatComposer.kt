@@ -114,7 +114,7 @@ fun ChatComposer(
             )
             ComposerToggle(
                 icon = Icons.Rounded.PhoneAndroid,
-                label = stringResource(R.string.digest_title),
+                label = stringResource(R.string.chat_phone_context),
                 active = state.phoneContextEnabled,
                 onClick = onTogglePhoneContext,
             )

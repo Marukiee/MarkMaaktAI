@@ -232,4 +232,5 @@
     <string name="onboarding_have_file">I already have a model file</string>
     <string name="onboarding_no_account">No account and no sign in. The download starts straight away.</string>
     <string name="onboarding_works_without">Photos and screenshots are read without any model at all, so you can skip this and come back later.</string>
+    <string name="chat_phone_context">Use my phone</string>
 </resources>

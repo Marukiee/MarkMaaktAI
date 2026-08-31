@@ -1,24 +1,14 @@
 package nl.markmaaktmedia.markmaaktai.ui.components
 
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxScope
-import androidx.compose.material3.LocalContentColor
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ripple
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.composed
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
@@ -67,50 +57,5 @@ fun Modifier.bouncyClickable(
     ) {
         if (withHaptics) haptics.performHapticFeedback(HapticFeedbackType.LongPress)
         onClick()
-    }
-}
-
-/** The same press feedback without a click, for a container that only wants the dip. */
-fun Modifier.pressScale(pressed: Boolean, pressedScale: Float = MarkMotion.PressedScale): Modifier =
-    composed {
-        val scale by animateFloatAsState(
-            targetValue = if (pressed) pressedScale else 1f,
-            animationSpec = MarkMotion.bouncy(),
-            label = "pressScaleOnly",
-        )
-        graphicsLayer {
-            scaleX = scale
-            scaleY = scale
-        }
-    }
-
-/**
- * A surface with the app's press feedback built in.
- *
- * Used instead of Material's Card wherever the card is tappable, so every tappable
- * surface in the app dips by the same amount and settles on the same spring.
- */
-@Composable
-fun BouncySurface(
-    modifier: Modifier = Modifier,
-    shape: Shape = MaterialTheme.shapes.large,
-    color: Color = MaterialTheme.colorScheme.surfaceContainer,
-    contentColor: Color = MaterialTheme.colorScheme.onSurface,
-    enabled: Boolean = true,
-    onClick: (() -> Unit)? = null,
-    content: @Composable BoxScope.() -> Unit,
-) {
-    val base = modifier
-        .clip(shape)
-        .background(color)
-
-    Box(
-        modifier = if (onClick != null) {
-            base.bouncyClickable(enabled = enabled, onClick = onClick)
-        } else {
-            base
-        },
-    ) {
-        CompositionLocalProvider(LocalContentColor provides contentColor, content = { content() })
     }
 }

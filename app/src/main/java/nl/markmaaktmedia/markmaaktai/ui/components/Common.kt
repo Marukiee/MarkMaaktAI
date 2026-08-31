@@ -17,19 +17,15 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.QuestionMark
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SwipeToDismissBox
 import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -185,24 +181,6 @@ fun SectionHeader(
     }
 }
 
-/** The card used for every grouped block, so grouping looks the same everywhere. */
-@Composable
-fun MarkCard(
-    modifier: Modifier = Modifier,
-    onClick: (() -> Unit)? = null,
-    color: Color = MaterialTheme.colorScheme.surfaceContainer,
-    content: @Composable androidx.compose.foundation.layout.ColumnScope.() -> Unit,
-) {
-    BouncySurface(
-        modifier = modifier.fillMaxWidth(),
-        shape = CardSquircle,
-        color = color,
-        onClick = onClick,
-    ) {
-        Column(modifier = Modifier.padding(4.dp), content = content)
-    }
-}
-
 @Composable
 fun EmptyState(
     title: String,
@@ -238,41 +216,6 @@ fun EmptyState(
         }
     }
 }
-
-@Composable
-fun ConfirmDialog(
-    title: String,
-    body: String,
-    confirmLabel: String,
-    onConfirm: () -> Unit,
-    onDismiss: () -> Unit,
-    destructive: Boolean = false,
-) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(title) },
-        text = { Text(body) },
-        shape = CardSquircle,
-        confirmButton = {
-            TextButton(onClick = { onConfirm(); onDismiss() }) {
-                Text(
-                    text = confirmLabel,
-                    color = if (destructive) MaterialTheme.colorScheme.error
-                    else MaterialTheme.colorScheme.primary,
-                )
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text(stringResourceCancel())
-            }
-        },
-    )
-}
-
-@Composable
-private fun stringResourceCancel(): String =
-    androidx.compose.ui.res.stringResource(nl.markmaaktmedia.markmaaktai.R.string.generic_cancel)
 
 /**
  * Swipe an item away, and let the list close the gap.
@@ -404,10 +347,7 @@ fun SoftDivider(modifier: Modifier = Modifier) {
     )
 }
 
-/** Fixed width spacer, used where a Row needs breathing room but not a weight. */
-@Composable
-fun HSpace(width: Int) = Spacer(Modifier.width(width.dp))
-
+/** Vertical breathing room, so a Column does not need a Spacer spelled out. */
 @Composable
 fun VSpace(height: Int) = Spacer(Modifier.height(height.dp))
 
@@ -423,18 +363,5 @@ fun SettingsGroup(
             .clip(CardSquircle)
             .background(MaterialTheme.colorScheme.surfaceContainerLow),
         content = content,
-    )
-}
-
-/** Rounded rectangle used for skeletons while something loads. */
-@Composable
-fun ShimmerBlock(
-    modifier: Modifier = Modifier,
-    cornerRadius: Int = 12,
-) {
-    Box(
-        modifier = modifier
-            .clip(RoundedCornerShape(cornerRadius.dp))
-            .background(MaterialTheme.colorScheme.surfaceContainerHigh)
     )
 }
