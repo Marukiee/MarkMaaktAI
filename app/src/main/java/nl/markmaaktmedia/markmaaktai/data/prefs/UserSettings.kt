@@ -61,6 +61,15 @@ data class UserSettings(
     val braveApiKey: String = "",
     val searchResultCount: Int = 4,
 
+    /**
+     * Look up where a photo was taken, using the coordinates it carries.
+     *
+     * Only the coordinates leave the phone, and only when a photo has them. It is on
+     * by default because "where is this?" is the first thing anyone asks a photo, and
+     * the alternative is a small model guessing at a place name.
+     */
+    val photoPlaceLookup: Boolean = true,
+
     val notificationIntelligence: Boolean = true,
     val minWordCount: Int = 5,
     val clusterSize: Int = 3,

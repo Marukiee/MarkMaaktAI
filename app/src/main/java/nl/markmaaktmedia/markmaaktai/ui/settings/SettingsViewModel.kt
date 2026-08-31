@@ -108,6 +108,10 @@ class SettingsViewModel @Inject constructor(
     fun setUseGpu(on: Boolean) = viewModelScope.launch { settings.setUseGpu(on) }
     fun setSearxngUrl(url: String) = viewModelScope.launch { settings.setSearxngUrl(url) }
     fun setBraveApiKey(key: String) = viewModelScope.launch { settings.setBraveApiKey(key) }
+    fun setPhotoPlaceLookup(enabled: Boolean) {
+        viewModelScope.launch { settings.setPhotoPlaceLookup(enabled) }
+    }
+
     fun setSearchResultCount(count: Int) = viewModelScope.launch { settings.setSearchResultCount(count) }
     fun setNotificationIntelligence(on: Boolean) =
         viewModelScope.launch { settings.setNotificationIntelligence(on) }

@@ -190,9 +190,26 @@ class ChatRepository @Inject constructor(
                 )
             } ?: return@runCatching null
 
-            val rotation = context.contentResolver.openInputStream(uri)?.use { input ->
-                ExifInterface(input).rotationDegrees
-            } ?: 0
+            val exif = context.contentResolver.openInputStream(uri)?.use { input ->
+                ExifInterface(input)
+            }
+            val rotation = exif?.rotationDegrees ?: 0
+
+            /*
+             * The coordinates are kept before the picture is re-encoded.
+             *
+             * Writing the bitmap back out as JPEG drops every tag it came with, and
+             * the spot the photo was taken is the one thing that can answer "where is
+             * this?" without a model guessing. A sidecar file rather than a database
+             * column: it is one line, it belongs to the image, and it goes when the
+             * image goes.
+             */
+            exif?.latLong?.let { (latitude, longitude) ->
+                runCatching {
+                    File(directory, "${target.name}.loc")
+                        .writeText("$latitude,$longitude")
+                }
+            }
 
             val oriented = if (rotation != 0) {
                 Bitmap.createBitmap(
@@ -215,6 +232,19 @@ class ChatRepository @Inject constructor(
     suspend fun loadAttachment(path: String): Bitmap? = withContext(Dispatchers.IO) {
         runCatching { BitmapFactory.decodeFile(path) }.getOrNull()
     }
+
+    /** Where the attached photo was taken, if the original carried it. */
+    suspend fun attachmentLocation(path: String): Pair<Double, Double>? =
+        withContext(Dispatchers.IO) {
+            runCatching {
+                val sidecar = File("$path.loc")
+                if (!sidecar.exists()) return@runCatching null
+                val parts = sidecar.readText().split(',')
+                val latitude = parts.getOrNull(0)?.trim()?.toDoubleOrNull()
+                val longitude = parts.getOrNull(1)?.trim()?.toDoubleOrNull()
+                if (latitude == null || longitude == null) null else latitude to longitude
+            }.getOrNull()
+        }
 
     private fun calculateSampleSize(width: Int, height: Int): Int {
         if (width <= 0 || height <= 0) return 1

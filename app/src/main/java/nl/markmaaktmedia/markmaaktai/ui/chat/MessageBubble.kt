@@ -316,7 +316,19 @@ private fun SourceRow(sources: List<WebSource>, onOpenSource: (String) -> Unit) 
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
-        LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        /*
+         * The row runs to both screen edges, not to the message's margins.
+         *
+         * The margin is put back as content padding instead, so the first chip still
+         * lines up with the text above it but the rest slide off the edge of the
+         * display rather than stopping short of it, which looked like the list had
+         * been cut off early.
+         */
+        LazyRow(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            modifier = Modifier.padding(horizontal = (-16).dp),
+            contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 16.dp),
+        ) {
             items(sources) { source ->
                 Row(
                     modifier = Modifier

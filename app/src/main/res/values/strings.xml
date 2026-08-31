@@ -180,6 +180,7 @@
     <string name="onboarding_start">Start</string>
 
     <!-- Assistant overlay -->
+    <string name="assist_ask_screen">What is on this screen?</string>
     <string name="assist_title">Ask about this screen</string>
     <string name="assist_hint">Ask anything</string>
     <string name="assist_screen_context">Using what is on screen</string>
@@ -289,4 +290,7 @@
     <string name="chat_previous_version">Previous version</string>
     <string name="chat_next_version">Next version</string>
     <string name="vision_download_best">Download %1$s</string>
+    <string name="settings_photo_place">Recognise where a photo was taken</string>
+    <string name="settings_photo_place_desc">Uses the coordinates the photo carries</string>
+    <string name="help_photo_place">A photo taken on a phone stores the exact spot it was taken. This turns that into a place name, so "where is this?" gets a real answer instead of a guess. Only the coordinates are looked up, never the photo, and only when a photo has them. Android does the lookup where it can, otherwise OpenStreetMap does.</string>
 </resources>

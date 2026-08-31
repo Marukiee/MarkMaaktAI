@@ -16,6 +16,8 @@ data class PromptContext(
     val notificationLines: List<String> = emptyList(),
     val screenText: String = "",
     val imageText: String = "",
+    /** Where the attached photo was taken, read from its own metadata. */
+    val photoPlace: String = "",
 )
 
 /**
@@ -78,6 +80,12 @@ object PromptBuilder {
             appendLine()
         }
 
+        if (context.photoPlace.isNotBlank()) {
+            appendLine("The attached photo was taken at: ${context.photoPlace}.")
+            appendLine("This came from the photo's own metadata, so it is reliable.")
+            appendLine()
+        }
+
         if (context.imageText.isNotBlank()) {
             appendLine("Text found in the attached image:")
             appendLine(context.imageText.take(MAX_SCREEN_CHARS))
@@ -92,6 +100,20 @@ object PromptBuilder {
         appendLine("User: $question")
         append("Assistant:")
     }
+
+    /**
+     * Asks for what is visible, and nothing else.
+     *
+     * No question, no history and no room to speculate. The answer is fed to a search
+     * engine, so a guessed place name in it would poison the query it is meant to
+     * build.
+     */
+    fun buildImageDescription(): String = """
+        Describe only what is visible in this image, in one sentence.
+        Name the objects, materials, colours, and any words written in the picture.
+        Do not name a place, a building, a person or a date.
+        Assistant:
+    """.trimIndent()
 
     /**
      * Prompt for the background summariser. Asks for one JSON object and nothing

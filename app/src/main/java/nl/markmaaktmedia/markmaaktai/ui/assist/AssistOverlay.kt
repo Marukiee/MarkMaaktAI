@@ -113,6 +113,7 @@ fun AssistOverlay(
     onAsk: () -> Unit,
     onDictate: () -> Unit,
     onOpenApp: () -> Unit,
+    onAskScreen: () -> Unit,
     onClose: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -203,6 +204,10 @@ fun AssistOverlay(
                             .padding(start = 8.dp, bottom = 10.dp)
                             .clip(PillShape)
                             .background(MaterialTheme.colorScheme.surfaceContainerHigh)
+                            // It reads as an offer, so it behaves as one. Without a
+                            // handler of its own the tap fell through to the scrim
+                            // behind it and closed the assistant instead.
+                            .bouncyClickable(onClick = onAskScreen)
                             .padding(horizontal = 14.dp, vertical = 8.dp),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(8.dp),

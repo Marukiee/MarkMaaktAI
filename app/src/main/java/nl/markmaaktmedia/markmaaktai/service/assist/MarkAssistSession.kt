@@ -127,6 +127,7 @@ class MarkAssistSession(context: Context) :
                         onAsk = ::ask,
                         onDictate = ::toggleDictation,
                         onOpenApp = ::openFullApp,
+                        onAskScreen = ::askAboutScreen,
                         onClose = ::dismiss,
                     )
                 }
@@ -379,6 +380,14 @@ class MarkAssistSession(context: Context) :
             }
             state.update { it.copy(isAnswering = false) }
         }
+    }
+
+    /** The badge above the sheet, tapped. Asks the obvious question for it. */
+    private fun askAboutScreen() {
+        val question = localisedContext(context)
+            .getString(nl.markmaaktmedia.markmaaktai.R.string.assist_ask_screen)
+        state.update { it.copy(query = question) }
+        ask()
     }
 
     private fun toggleDictation() {

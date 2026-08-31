@@ -133,7 +133,16 @@ fun AiSettings(
 @Composable
 fun SearchSettings(settings: UserSettings, viewModel: SettingsViewModel) {
     SettingsGroup {
-        GroupedRow(index = 0, total = 3) {
+        GroupedRow(index = 0, total = 4) {
+            SwitchRow(
+                title = stringResource(R.string.settings_photo_place),
+                subtitle = stringResource(R.string.settings_photo_place_desc),
+                checked = settings.photoPlaceLookup,
+                onCheckedChange = viewModel::setPhotoPlaceLookup,
+                help = stringResource(R.string.help_photo_place),
+            )
+        }
+        GroupedRow(index = 1, total = 4) {
             TextFieldRow(
                 title = stringResource(R.string.settings_searxng_url),
                 value = settings.searxngUrl,
@@ -142,7 +151,7 @@ fun SearchSettings(settings: UserSettings, viewModel: SettingsViewModel) {
                 help = stringResource(R.string.settings_searxng_url_desc),
             )
         }
-        GroupedRow(index = 1, total = 3) {
+        GroupedRow(index = 2, total = 4) {
             TextFieldRow(
                 title = stringResource(R.string.settings_brave_key),
                 value = settings.braveApiKey,
@@ -151,7 +160,7 @@ fun SearchSettings(settings: UserSettings, viewModel: SettingsViewModel) {
                 help = stringResource(R.string.settings_brave_key_desc),
             )
         }
-        GroupedRow(index = 2, total = 3) {
+        GroupedRow(index = 3, total = 4) {
             SliderRow(
                 title = stringResource(R.string.settings_search_results),
                 valueLabel = settings.searchResultCount.toString(),

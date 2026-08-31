@@ -45,6 +45,7 @@ class SettingsRepository @Inject constructor(
         val clusterSize = intPreferencesKey("cluster_size")
         val clusterWindow = intPreferencesKey("cluster_window_minutes")
         val longEmailWordCount = intPreferencesKey("long_email_word_count")
+        val photoPlaceLookup = booleanPreferencesKey("photo_place_lookup")
         val excludedPackages = stringSetPreferencesKey("excluded_packages")
         val urgentAlerts = booleanPreferencesKey("urgent_alerts")
         val retentionDays = intPreferencesKey("retention_days")
@@ -82,6 +83,7 @@ class SettingsRepository @Inject constructor(
             excludedPackages = prefs[Keys.excludedPackages] ?: defaults.excludedPackages,
             urgentAlerts = prefs[Keys.urgentAlerts] ?: defaults.urgentAlerts,
             retentionDays = prefs[Keys.retentionDays] ?: defaults.retentionDays,
+            photoPlaceLookup = prefs[Keys.photoPlaceLookup] ?: defaults.photoPlaceLookup,
             textModelPath = prefs[Keys.textModelPath] ?: defaults.textModelPath,
             visionModelPath = prefs[Keys.visionModelPath] ?: defaults.visionModelPath,
             speechModelPath = prefs[Keys.speechModelPath] ?: defaults.speechModelPath,
@@ -120,6 +122,9 @@ class SettingsRepository @Inject constructor(
         prefs[Keys.excludedPackages] =
             if (packageName in current) current - packageName else current + packageName
     }
+
+    suspend fun setPhotoPlaceLookup(enabled: Boolean) =
+        put { it[Keys.photoPlaceLookup] = enabled }
 
     suspend fun setTextModelPath(path: String) = put { it[Keys.textModelPath] = path }
     suspend fun setVisionModelPath(path: String) = put { it[Keys.visionModelPath] = path }

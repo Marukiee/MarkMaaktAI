@@ -118,6 +118,20 @@ Dit is waar de app op beoordeeld wordt. Nooit op afknijpen.
   korte fade zodat een letter niet doormidden gesneden wordt. De lijst krijgt onderaan
   precies de hoogte van de balk als padding.
 
+### Foto's en plaatsen
+
+- "Waar is dit?" wordt beantwoord met de **coordinaten uit de foto**, niet met het
+  model. Een telefoon schrijft de exacte plek in elke foto; een klein vision-model
+  gokt. Android's `Geocoder` eerst, anders Nominatim van OpenStreetMap, want een
+  de-Googled ROM heeft geen geocoder.
+- De coordinaten worden bewaard in een sidecar (`<foto>.jpg.loc`) omdat het opnieuw
+  opslaan als JPEG alle EXIF weggooit.
+- Zonder coordinaten: eerst het vision-model laten **beschrijven** wat er te zien is,
+  die woorden als zoekopdracht gebruiken. Het web weet de naam, het model niet.
+- Er is geen groter vision-model beschikbaar. Alles boven FastVLM 0.5B in LiteRT-formaat
+  (FastVLM 1.5B en 7B, Qwen2.5-VL, PaliGemma, Gemma 3n) geeft 401 zonder ingelogde
+  licentie-acceptatie. Niet nog eens opnieuw uitzoeken.
+
 ## Gebruiksgemak
 
 - **APK installeren en klaar.** Geen HuggingFace-account, geen tokens, geen licentie

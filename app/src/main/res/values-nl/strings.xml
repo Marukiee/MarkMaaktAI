@@ -170,6 +170,7 @@
     <string name="onboarding_next">Verder</string>
     <string name="onboarding_start">Beginnen</string>
 
+    <string name="assist_ask_screen">Wat staat er op dit scherm?</string>
     <string name="assist_title">Vraag over dit scherm</string>
     <string name="assist_hint">Vraag maar raak</string>
     <string name="assist_screen_context">Gebruikt wat er op je scherm staat</string>
@@ -275,4 +276,7 @@
     <string name="chat_previous_version">Vorige versie</string>
     <string name="chat_next_version">Volgende versie</string>
     <string name="vision_download_best">Download %1$s</string>
+    <string name="settings_photo_place">Herken waar een foto gemaakt is</string>
+    <string name="settings_photo_place_desc">Gebruikt de coordinaten die in de foto zitten</string>
+    <string name="help_photo_place">Een foto die met een telefoon is gemaakt bewaart de precieze plek. Dit zet dat om in een plaatsnaam, zodat "waar is dit?" een echt antwoord krijgt in plaats van een gok. Alleen de coordinaten worden opgezocht, nooit de foto zelf, en alleen als een foto ze heeft. Android doet het opzoeken waar dat kan, anders OpenStreetMap.</string>
 </resources>

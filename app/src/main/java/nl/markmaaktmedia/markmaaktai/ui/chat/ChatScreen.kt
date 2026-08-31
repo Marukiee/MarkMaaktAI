@@ -188,22 +188,6 @@ fun ChatScreen(
                 .align(Alignment.BottomCenter)
                 .onSizeChanged { composerHeight = it.height },
         ) {
-            // A short fade rather than a hard line. Text that scrolls under the bar
-            // thins out instead of being cut through the middle of a letter.
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(28.dp)
-                    .background(
-                        androidx.compose.ui.graphics.Brush.verticalGradient(
-                            listOf(
-                                MaterialTheme.colorScheme.surface.copy(alpha = 0f),
-                                MaterialTheme.colorScheme.surface.copy(alpha = 0.9f),
-                            )
-                        )
-                    )
-            )
-
             WorkStatusLine(state = state)
 
             ChatComposer(

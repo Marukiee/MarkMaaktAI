@@ -1,5 +1,6 @@
 package nl.markmaaktmedia.markmaaktai.ui.chat
 
+import android.graphics.Bitmap
 import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -71,6 +72,7 @@ class ChatViewModel @Inject constructor(
     private val notificationRepository: NotificationRepository,
     private val screenshotRepository: ScreenshotRepository,
     private val searchClient: WebSearchClient,
+    private val placeLookup: nl.markmaaktmedia.markmaaktai.data.remote.PlaceLookup,
     private val orchestrator: AiOrchestrator,
     private val speechInput: SpeechInputManager,
     private val imageTextExtractor: nl.markmaaktmedia.markmaaktai.ai.vision.ImageTextExtractor,
@@ -160,6 +162,28 @@ class ChatViewModel @Inject constructor(
                 }
             }
         }
+    }
+
+    /**
+     * What to actually search for when a photo is in the turn.
+     *
+     * "Where is this?" is a useless query on its own. With coordinates the place name
+     * is added and the search becomes about that place. Without them the vision model
+     * is asked what it can see first, and those words go to the search engine, which
+     * is the part that knows Barcelona from Bologna. A picture with no model to look
+     * at it falls back to the question, which at least does no harm.
+     */
+    private suspend fun searchQueryFor(
+        question: String,
+        image: Bitmap?,
+        photoPlace: String,
+    ): String {
+        if (image == null) return question
+        if (photoPlace.isNotBlank()) return "$question $photoPlace"
+
+        val described = orchestrator.describeImage(image).getOrNull()?.trim().orEmpty()
+        if (described.isBlank()) return question
+        return "$question ${described.take(MAX_DESCRIPTION_CHARS)}"
     }
 
     fun onInputChange(value: String) {
@@ -316,11 +340,34 @@ class ChatViewModel @Inject constructor(
         var sources: List<WebSource> = emptyList()
         var promptContext = PromptContext()
 
+        val bitmap = attachmentPath?.let { chatRepository.loadAttachment(it) }
+
+        /*
+         * Where the photo was taken, straight from the photo.
+         *
+         * This is what makes "where is this?" answerable. A phone writes the exact
+         * coordinates into every picture it takes, so the place is already known and
+         * only needs a name; a model looking at the pixels is guessing. When the
+         * picture has no coordinates, which is the case for anything saved from the
+         * web, this finds nothing and the search below picks it up instead.
+         */
+        val photoPlace = if (attachmentPath != null && settings.current().photoPlaceLookup) {
+            _uiState.update { it.copy(stage = WorkStage.Searching) }
+            chatRepository.attachmentLocation(attachmentPath)
+                ?.let { (latitude, longitude) -> placeLookup.describe(latitude, longitude) }
+                .orEmpty()
+        } else {
+            ""
+        }
+        if (photoPlace.isNotBlank()) {
+            promptContext = promptContext.copy(photoPlace = photoPlace)
+        }
+
         if (_uiState.value.webSearchEnabled && question.isNotBlank()) {
             _uiState.update { it.copy(stage = WorkStage.Searching) }
             val prefs = settings.current()
             val outcome = searchClient.search(
-                query = question,
+                query = searchQueryFor(question, bitmap, photoPlace),
                 limit = prefs.searchResultCount,
                 // Whatever the user typed, and nothing when they typed nothing. The
                 // placeholder in settings is an example address, not a server.
@@ -349,8 +396,6 @@ class ChatViewModel @Inject constructor(
                 promptContext = promptContext.copy(notificationLines = combined)
             }
         }
-
-        val bitmap = attachmentPath?.let { chatRepository.loadAttachment(it) }
 
         /*
          * A photo with no vision model and no readable text is a question the app
@@ -491,6 +536,7 @@ class ChatViewModel @Inject constructor(
 
     private companion object {
         const val PERSIST_EVERY_CHARS = 24
+        const val MAX_DESCRIPTION_CHARS = 180
         const val DEFAULT_TITLE = "New conversation"
         const val DESCRIBE_IMAGE = "Describe what is in this image."
     }

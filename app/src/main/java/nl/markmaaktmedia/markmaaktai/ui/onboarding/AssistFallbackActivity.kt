@@ -10,6 +10,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.hilt.navigation.compose.hiltViewModel
 import dagger.hilt.android.AndroidEntryPoint
 import nl.markmaaktmedia.markmaaktai.MainActivity
+import nl.markmaaktmedia.markmaaktai.R
 import nl.markmaaktmedia.markmaaktai.data.prefs.SettingsRepository
 import nl.markmaaktmedia.markmaaktai.data.prefs.UserSettings
 import nl.markmaaktmedia.markmaaktai.ui.assist.AssistOverlay
@@ -57,6 +58,10 @@ class AssistFallbackActivity : ComponentActivity() {
                                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
                         )
                         finish()
+                    },
+                    onAskScreen = {
+                        viewModel.onQueryChange(getString(R.string.assist_ask_screen))
+                        viewModel.ask()
                     },
                     onClose = {
                         // Let the sheet animate out, then drop the activity.

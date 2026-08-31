@@ -102,6 +102,52 @@ class AiOrchestrator @Inject constructor(
     }
 
     /**
+     * Asks the vision model what is actually in a picture, in a form that can be
+     * searched for.
+     *
+     * The point is the second step, not this one. A small vision model cannot name a
+     * landmark, but it can list what makes it recognisable: the number of towers, the
+     * material, the shape of a roof, any words on a sign. Those words are a far better
+     * search query than "where is this?", and the web can do the naming.
+     *
+     * Deliberately not streamed and deliberately short. Nobody reads this; it exists
+     * to be turned into a query.
+     */
+    suspend fun describeImage(image: Bitmap): Result<String> {
+        val prefs = settings.current()
+        if (!prefs.visionModelPath.isModelFile()) {
+            return Result.failure(NoModelLoadedException("No vision model is installed"))
+        }
+
+        val params = prefs.toParams().copy(maxTokens = DESCRIPTION_TOKENS)
+        when (val prepared = prepare(ModelRole.VISION, params)) {
+            is PrepareResult.Failed -> return Result.failure(NoModelLoadedException(prepared.reason))
+            is PrepareResult.Ready -> Unit
+        }
+
+        val builder = StringBuilder()
+        var failure: String? = null
+        engine.generate(
+            InferenceRequest(
+                prompt = PromptBuilder.buildImageDescription(),
+                images = listOf(image),
+                params = params,
+            )
+        )
+            .onEach { event ->
+                when (event) {
+                    is InferenceEvent.Token -> builder.append(event.text)
+                    is InferenceEvent.Failed -> failure = event.message
+                    else -> Unit
+                }
+            }
+            .collectSafely()
+
+        return failure?.let { Result.failure(IllegalStateException(it)) }
+            ?: Result.success(builder.toString().trim())
+    }
+
+    /**
      * One shot completion used by the background work: summaries, reply drafts and
      * conversation titles. Always runs on the small text model, which is what keeps
      * notification handling cheap enough to do on every burst.
@@ -207,4 +253,7 @@ class AiOrchestrator @Inject constructor(
         const val TAG = "AiOrchestrator"
         const val NO_MODEL_MESSAGE = "No model has been picked yet"
     }
+
+    /** Enough for a line of visible detail, not an essay. */
+    private val DESCRIPTION_TOKENS = 96
 }
