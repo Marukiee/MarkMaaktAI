@@ -11,6 +11,8 @@ import androidx.compose.animation.scaleOut
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -32,6 +34,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -355,7 +358,14 @@ private fun ShotDetail(
         modifier = Modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.scrim.copy(alpha = 0.72f))
-            .bouncyClickable(role = null, onClick = onClose),
+            // Tapping the backdrop closes. No ripple and no press scale here: this is
+            // a dismiss area, not a button, and animating the whole screen under the
+            // finger is what made the sheet feel like it was misfiring.
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+                onClick = onClose,
+            ),
         contentAlignment = Alignment.Center,
     ) {
         Column(
@@ -363,6 +373,13 @@ private fun ShotDetail(
                 .padding(20.dp)
                 .clip(CardSquircle)
                 .background(MaterialTheme.colorScheme.surfaceContainerLow)
+                // Swallows taps so pressing the picture, or missing a button by a few
+                // pixels, does not close the thing you just opened.
+                .clickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = null,
+                    onClick = {},
+                )
                 .padding(16.dp),
         ) {
             AsyncImage(
