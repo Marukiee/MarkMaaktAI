@@ -280,9 +280,15 @@ private fun ComposerToggle(
 ) {
     val container by animateColorAsState(
         targetValue = if (active) MaterialTheme.colorScheme.secondaryContainer
-        else MaterialTheme.colorScheme.surfaceContainerHigh,
+        else Color.Transparent,
         animationSpec = MarkMotion.colourSpec(),
         label = "toggleContainer",
+    )
+    val border by animateColorAsState(
+        targetValue = if (active) Color.Transparent
+        else MaterialTheme.colorScheme.outlineVariant,
+        animationSpec = MarkMotion.colourSpec(),
+        label = "toggleBorder",
     )
     val content by animateColorAsState(
         targetValue = if (active) MaterialTheme.colorScheme.onSecondaryContainer
@@ -295,6 +301,7 @@ private fun ComposerToggle(
         modifier = Modifier
             .clip(PillShape)
             .background(container)
+            .border(width = 1.dp, color = border, shape = PillShape)
             .bouncyClickable(onClick = onClick)
             .padding(horizontal = 11.dp, vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically,

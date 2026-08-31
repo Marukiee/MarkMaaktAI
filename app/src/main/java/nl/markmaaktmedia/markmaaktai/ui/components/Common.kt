@@ -157,11 +157,6 @@ fun HelpTip(
     title: String? = null,
 ) {
     var open by remember { mutableStateOf(false) }
-    val rotation by animateFloatAsState(
-        targetValue = if (open) 90f else 0f,
-        animationSpec = MarkMotion.springy(),
-        label = "helpTipRotation",
-    )
 
     Box(
         // Required, not preferred: inside a Row that is short of space a plain size
@@ -177,9 +172,7 @@ fun HelpTip(
             painter = MarkIcons.Help,
             contentDescription = null,
             tint = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier
-                .size(12.dp)
-                .graphicsLayer { rotationZ = rotation },
+            modifier = Modifier.size(12.dp),
         )
     }
 

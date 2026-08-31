@@ -114,7 +114,7 @@ class MarkAssistSession(context: Context) :
                         onAsk = ::ask,
                         onDictate = ::toggleDictation,
                         onOpenApp = ::openFullApp,
-                        onClose = { hide() },
+                        onClose = ::dismiss,
                     )
                 }
             }
@@ -276,11 +276,27 @@ class MarkAssistSession(context: Context) :
         }
     }
 
+    /**
+     * Lets the sheet slide out before the window is taken away.
+     *
+     * Calling hide straight from the button removed the whole window on the same
+     * frame, so the exit animation never had a chance to run and the sheet simply
+     * vanished.
+     */
+    private fun dismiss() {
+        if (state.value.closing) return
+        state.update { it.copy(closing = true) }
+        scope.launch {
+            kotlinx.coroutines.delay(240)
+            hide()
+        }
+    }
+
     private fun openFullApp() {
         val intent = Intent(context, MainActivity::class.java)
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
         runCatching { context.startActivity(intent) }
-        hide()
+        dismiss()
     }
 
     /**

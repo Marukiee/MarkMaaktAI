@@ -44,6 +44,11 @@ data class ChatUiState(
     val partialSpeech: String = "",
     val error: String? = null,
     val hasTextModel: Boolean = true,
+    /**
+     * Set when a photo was attached that nothing installed can actually read. The
+     * chat says so and offers the download rather than answering anyway.
+     */
+    val needsVisionModel: Boolean = false,
     /** Kept so the error dialog can offer to run the same question again. */
     val lastQuestion: String = "",
     val engineState: EngineState = EngineState.NoModel,
@@ -60,6 +65,7 @@ class ChatViewModel @Inject constructor(
     private val searchClient: WebSearchClient,
     private val orchestrator: AiOrchestrator,
     private val speechInput: SpeechInputManager,
+    private val imageTextExtractor: nl.markmaaktmedia.markmaaktai.ai.vision.ImageTextExtractor,
     private val settings: SettingsRepository,
     private val handoff: nl.markmaaktmedia.markmaaktai.ui.navigation.ChatHandoff,
 ) : ViewModel() {
@@ -137,6 +143,10 @@ class ChatViewModel @Inject constructor(
 
     fun dismissError() {
         _uiState.update { it.copy(error = null) }
+    }
+
+    fun dismissVisionNotice() {
+        _uiState.update { it.copy(needsVisionModel = false) }
     }
 
     fun newConversation() {
@@ -257,6 +267,24 @@ class ChatViewModel @Inject constructor(
         }
 
         val bitmap = attachmentPath?.let { chatRepository.loadAttachment(it) }
+
+        /*
+         * A photo with no vision model and no readable text is a question the app
+         * cannot answer. It used to be sent anyway, so the model received a prompt
+         * about an image it had never seen and produced a confident single word.
+         * Saying what is missing is both more honest and more useful.
+         */
+        if (bitmap != null && !orchestrator.hasVisionModel()) {
+            val readable = runCatching { imageTextExtractor.extractStructured(bitmap) }
+                .getOrDefault("")
+            if (readable.isBlank()) {
+                _uiState.update {
+                    it.copy(isGenerating = false, stage = WorkStage.Idle, needsVisionModel = true)
+                }
+                return
+            }
+        }
+
         _uiState.update { it.copy(stage = WorkStage.LoadingModel) }
 
         val assistantId = chatRepository.startAssistantMessage(id)

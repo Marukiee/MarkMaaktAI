@@ -49,7 +49,8 @@ fun MarkDropdownMenu(
     expanded: Boolean,
     onDismissRequest: () -> Unit,
     modifier: Modifier = Modifier,
-    offset: DpOffset = DpOffset(0.dp, 4.dp),
+    /** Cleared the anchor by default, so the menu sits under the button. */
+    offset: DpOffset = DpOffset(0.dp, 44.dp),
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val visibleState = remember { MutableTransitionState(false) }
@@ -72,8 +73,10 @@ fun MarkDropdownMenu(
     ) {
         AnimatedVisibility(
             visibleState = visibleState,
+            // Settles rather than bounces. A menu that overshoots reads as a toy.
             enter = scaleIn(
-                animationSpec = MarkMotion.springy(),
+                animationSpec = MarkMotion.spatial(),
+                initialScale = 0.8f,
                 transformOrigin = MenuOrigin,
             ) + fadeIn(animationSpec = MarkMotion.fadeSpec()),
             exit = scaleOut(

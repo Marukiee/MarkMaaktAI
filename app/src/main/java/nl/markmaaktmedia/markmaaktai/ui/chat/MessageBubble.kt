@@ -58,10 +58,14 @@ fun MessageBubble(
     modifier: Modifier = Modifier,
 ) {
     val fromUser = message.role == ChatRepository.ROLE_USER
-    if (fromUser) {
-        UserMessage(message, modifier)
-    } else {
-        AssistantMessage(message, isStreaming, onOpenSource, modifier)
+    // Anything the model wrote is worth being able to select and copy out, and so is
+    // what you asked. The copy button stays for the whole answer in one tap.
+    androidx.compose.foundation.text.selection.SelectionContainer {
+        if (fromUser) {
+            UserMessage(message, modifier)
+        } else {
+            AssistantMessage(message, isStreaming, onOpenSource, modifier)
+        }
     }
 }
 
@@ -74,14 +78,16 @@ private fun UserMessage(message: MessageEntity, modifier: Modifier = Modifier) {
         horizontalAlignment = Alignment.End,
     ) {
         if (message.imagePath != null) {
+            // Padding after the clip trims the picture instead of spacing it, which
+            // is what was shaving the bottom edge off every attachment.
             AsyncImage(
                 model = message.imagePath,
                 contentDescription = null,
-                contentScale = ContentScale.Crop,
+                contentScale = ContentScale.Fit,
                 modifier = Modifier
-                    .sizeIn(maxWidth = 220.dp, maxHeight = 260.dp)
-                    .clip(SquircleShape(22.dp))
-                    .padding(bottom = 6.dp),
+                    .padding(bottom = 6.dp)
+                    .sizeIn(maxWidth = 240.dp, maxHeight = 300.dp)
+                    .clip(SquircleShape(22.dp)),
             )
         }
         if (message.content.isNotBlank()) {

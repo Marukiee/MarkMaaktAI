@@ -103,7 +103,7 @@ class SpeechInputManager @Inject constructor(
                 }
 
                 override fun onError(exception: Exception?) {
-                    trySend(SpeechEvent.Failed(exception?.message ?: "Dictation failed"))
+                    trySend(SpeechEvent.Failed(exception?.message ?: NO_BACKEND))
                     close()
                 }
 
@@ -191,11 +191,10 @@ class SpeechInputManager @Inject constructor(
     private fun describeSystemError(code: Int): String = when (code) {
         SpeechRecognizer.ERROR_AUDIO -> "The microphone could not be read"
         SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS -> "Microphone permission has not been granted"
-        SpeechRecognizer.ERROR_NETWORK, SpeechRecognizer.ERROR_NETWORK_TIMEOUT ->
-            "This recogniser wanted the network. Install the offline speech model instead."
+        SpeechRecognizer.ERROR_NETWORK, SpeechRecognizer.ERROR_NETWORK_TIMEOUT -> NO_BACKEND
         SpeechRecognizer.ERROR_NO_MATCH -> "Nothing was understood"
         SpeechRecognizer.ERROR_SPEECH_TIMEOUT -> "Nothing was said"
-        else -> "Dictation failed"
+        else -> NO_BACKEND
     }
 
     private companion object {

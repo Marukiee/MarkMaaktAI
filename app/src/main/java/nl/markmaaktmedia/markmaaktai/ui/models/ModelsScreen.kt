@@ -37,6 +37,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import nl.markmaaktmedia.markmaaktai.R
 import nl.markmaaktmedia.markmaaktai.ai.ModelRole
 import nl.markmaaktmedia.markmaaktai.ai.ModelSpec
+import nl.markmaaktmedia.markmaaktai.ui.components.MarkIconButton
 import nl.markmaaktmedia.markmaaktai.ui.components.PillBadge
 import nl.markmaaktmedia.markmaaktai.ui.components.PillSpinner
 import nl.markmaaktmedia.markmaaktai.ui.components.SectionHeader
@@ -243,7 +244,7 @@ private fun ModelRow(
                     }
                 }
                 Text(
-                    text = spec.summary,
+                    text = stringResource(spec.summaryRes),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(top = 2.dp),
@@ -257,14 +258,16 @@ private fun ModelRow(
             }
 
             when {
-                progress != null -> Box(
-                    modifier = Modifier
-                        .size(40.dp)
-                        .bouncyClickable(onClick = onCancel),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    PillSpinner(size = 20.dp)
-                }
+                // A transfer has a size, so it gets a bar and a cancel button. The
+                // spinner is for waiting on something with no measurable progress,
+                // and showing both for one step says neither clearly.
+                progress != null -> MarkIconButton(
+                    icon = MarkIcons.Close,
+                    contentDescription = stringResource(R.string.models_cancel_download),
+                    onClick = onCancel,
+                    size = 40,
+                    iconSize = 18,
+                )
 
                 active -> Icon(
                     painter = MarkIcons.CheckCircle,

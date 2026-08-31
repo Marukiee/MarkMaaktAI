@@ -121,6 +121,17 @@
             </intent-filter>
         </service>
 
+        <!--
+            WorkManager declares this service without a foregroundServiceType, so
+            calling setForeground with dataSync threw "foregroundServiceType
+            0x00000001 is not a subset of 0x00000000" and killed the app the moment a
+            model download started. Merging the attribute in is the documented fix.
+        -->
+        <service
+            android:name="androidx.work.impl.foreground.SystemForegroundService"
+            android:foregroundServiceType="dataSync"
+            tools:node="merge" />
+
         <receiver
             android:name=".service.notifications.NotificationActionReceiver"
             android:exported="false" />

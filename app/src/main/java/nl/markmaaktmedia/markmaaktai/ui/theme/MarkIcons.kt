@@ -60,6 +60,9 @@ object MarkIcons {
     val PinOff: Painter @Composable get() = painterResource(R.drawable.sym_keep_off)
     val NewChat: Painter @Composable get() = painterResource(R.drawable.sym_add_comment)
     val Sparkle: Painter @Composable get() = painterResource(R.drawable.sym_auto_awesome)
+    val Today: Painter @Composable get() = painterResource(R.drawable.sym_today)
+    val UrgentFilled: Painter @Composable get() = painterResource(R.drawable.sym_priority_filled)
+    val Edit: Painter @Composable get() = painterResource(R.drawable.sym_edit)
     val SparkleFilled: Painter @Composable get() = painterResource(R.drawable.sym_auto_awesome_filled)
 
     // Digest and screenshots

@@ -58,7 +58,11 @@ class AssistFallbackActivity : ComponentActivity() {
                         )
                         finish()
                     },
-                    onClose = { finish() },
+                    onClose = {
+                        // Let the sheet animate out, then drop the activity.
+                        viewModel.beginClose()
+                        window.decorView.postDelayed({ finish() }, 240)
+                    },
                 )
             }
         }

@@ -78,6 +78,10 @@ class AssistViewModel @Inject constructor(
         }
     }
 
+    fun beginClose() {
+        _state.update { it.copy(closing = true) }
+    }
+
     fun toggleDictation() {
         if (_state.value.isListening) {
             dictationJob?.cancel()

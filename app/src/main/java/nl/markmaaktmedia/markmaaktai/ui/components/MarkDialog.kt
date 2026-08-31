@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
@@ -94,7 +95,7 @@ fun MarkDialog(
                 }
                 .clip(SquircleShape(32.dp))
                 .background(MaterialTheme.colorScheme.surfaceContainerHigh)
-                .padding(start = 24.dp, end = 12.dp, top = 12.dp, bottom = 24.dp),
+                .padding(horizontal = 24.dp, vertical = 20.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             /*
@@ -105,16 +106,18 @@ fun MarkDialog(
              * harder to pick out. In the corner it is always in the same place and
              * never competes for width.
              */
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.End,
-            ) {
+            // Floated rather than laid out, so the padding stays symmetric and the
+            // title lands in the middle of the dialog instead of a little to the left.
+            Box(modifier = Modifier.fillMaxWidth()) {
                 MarkIconButton(
                     icon = MarkIcons.Close,
                     contentDescription = closeLabel,
                     onClick = onDismiss,
                     size = 34,
                     iconSize = 17,
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .offset(x = 6.dp, y = (-8).dp),
                 )
             }
 

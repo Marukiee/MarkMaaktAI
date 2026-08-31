@@ -82,6 +82,8 @@ data class AssistUiState(
      * composition that is already on screen.
      */
     val showId: Int = 0,
+    /** Set just before the window goes, so the sheet can slide out first. */
+    val closing: Boolean = false,
 )
 
 /**
@@ -113,8 +115,14 @@ fun AssistOverlay(
 ) {
     var visible by remember { mutableStateOf(false) }
     LaunchedEffect(state.showId) {
+        // A frame between the two, or the sheet is composed already visible and the
+        // arrival only plays the very first time.
         visible = false
+        androidx.compose.runtime.withFrameNanos { }
         visible = true
+    }
+    LaunchedEffect(state.closing) {
+        if (state.closing) visible = false
     }
 
     val busy = state.isAnswering || state.isListening
@@ -140,10 +148,9 @@ fun AssistOverlay(
         Column(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
-                .navigationBarsPadding()
                 .imePadding()
-                .padding(horizontal = 10.dp, vertical = 10.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
+                .padding(horizontal = 8.dp),
+            horizontalAlignment = Alignment.Start,
         ) {
             // The context badge is its own pill above the sheet, so it reads as a
             // statement about the screen rather than as a subtitle of the app name.
@@ -154,7 +161,7 @@ fun AssistOverlay(
             ) {
                 Row(
                     modifier = Modifier
-                        .padding(bottom = 10.dp)
+                        .padding(start = 8.dp, bottom = 10.dp)
                         .clip(PillShape)
                         .background(MaterialTheme.colorScheme.surfaceContainerHigh)
                         .padding(horizontal = 14.dp, vertical = 8.dp),
@@ -205,7 +212,7 @@ private fun AssistSheet(
 
     Column(
         modifier = Modifier
-            .clip(SquircleShape(38.dp))
+            .clip(SheetCorners)
             .background(MaterialTheme.colorScheme.surfaceContainerLow)
             .draggable(
                 orientation = Orientation.Vertical,
@@ -217,7 +224,8 @@ private fun AssistSheet(
                     dragged = 0f
                 },
             )
-            .padding(horizontal = 20.dp, vertical = 14.dp),
+            .navigationBarsPadding()
+            .padding(start = 20.dp, end = 20.dp, top = 14.dp, bottom = 14.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Box(
@@ -399,6 +407,18 @@ private fun ListeningWave(modifier: Modifier = Modifier) {
         }
     }
 }
+
+/**
+ * Square along the bottom, rounded on top.
+ *
+ * The sheet runs to the very edge of the screen so the gesture bar sits on it rather
+ * than in a strip of the app behind it, and a sheet that is rounded where it meets
+ * the edge looks like it failed to reach.
+ */
+private val SheetCorners = androidx.compose.foundation.shape.RoundedCornerShape(
+    topStart = 28.dp,
+    topEnd = 28.dp,
+)
 
 /** Drag distance, in pixels, that counts as asking for the full app. */
 private const val OpenAppThreshold = -120f

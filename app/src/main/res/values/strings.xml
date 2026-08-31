@@ -124,7 +124,6 @@
     <string name="settings_searxng_url">SearXNG address</string>
     <string name="settings_searxng_url_desc">A privacy friendly search instance. Change it to your own if you host one.</string>
     <string name="settings_brave_key">Brave Search API key</string>
-    <string name="settings_brave_key_desc">Optional. When filled in, Brave is used instead of SearXNG.</string>
     <string name="settings_search_results">Results per search</string>
 
     <string name="settings_section_notifications">Notification intelligence</string>
@@ -275,4 +274,15 @@
     <string name="assist_ready">What can I do?</string>
     <string name="shots_searching">Searching</string>
     <string name="help_toggles">Search the web looks things up online, and only when it is on. Use my phone lets the answer draw on your own notifications and screenshots.</string>
+    <string name="model_qwen15_summary">The best all rounder here, and good at Dutch. Around 1.5 GB.</string>
+    <string name="model_qwen05_summary">Half a gigabyte and quick to answer. Fine for notification summaries.</string>
+    <string name="model_deepseek_summary">Reasons its way to an answer, so it is slower and more thorough.</string>
+    <string name="model_smollm_summary">Tiny and instant, but it is a 135M model. Good on a very tight phone.</string>
+    <string name="model_fastvlm_summary">Describes what is in a photo. Text on screenshots is read by OCR either way.</string>
+    <string name="model_vosk_nl_summary">Offline Dutch dictation. Unpacked after downloading.</string>
+    <string name="model_vosk_en_summary">Offline English dictation. Unpacked after downloading.</string>
+    <string name="settings_brave_key_desc">Optional. Without a key the app searches with DuckDuckGo, which needs no account. A key makes it faster and more reliable: open search.brave.com/api, pick the free plan, and paste the key here. It allows a couple of thousand searches a month.</string>
+    <string name="settings_models_summary">Download or pick the model that answers</string>
+    <string name="vision_needed_title">This photo needs a vision model</string>
+    <string name="vision_needed_body">There is no text in it to read, and nothing installed can look at pictures. Download FastVLM under Models and try again.</string>
 </resources>

@@ -28,6 +28,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.systemBarsPadding
@@ -95,11 +96,19 @@ fun ChatScreen(
         contract = ActivityResultContracts.PickVisualMedia(),
     ) { uri: Uri? -> uri?.let(viewModel::onAttachmentPicked) }
 
-    // Follow the answer as it streams, but only while the user is already near the
-    // bottom. Yanking the view down while someone reads further up is rude.
-    LaunchedEffect(messages.size, state.isGenerating) {
+    /*
+     * Sending always scrolls to the bottom, because you just wrote that and expect to
+     * see it. Streaming only scrolls if you were already near the end, since dragging
+     * the view down while someone reads further up is rude.
+     */
+    LaunchedEffect(messages.size) {
+        if (messages.isNotEmpty()) {
+            listState.animateScrollToItem(messages.lastIndex)
+        }
+    }
+    LaunchedEffect(messages.lastOrNull()?.content) {
         if (messages.isNotEmpty() && listState.firstVisibleItemIndex >= messages.size - 3) {
-            listState.animateScrollToItem(messages.lastIndex.coerceAtLeast(0))
+            listState.animateScrollToItem(messages.lastIndex)
         }
     }
 
@@ -112,23 +121,25 @@ fun ChatScreen(
         )
 
         Box(modifier = Modifier.weight(1f)) {
-            if (messages.isEmpty()) {
-                ChatEmptyState(
-                    hasModel = state.hasTextModel,
-                    onSuggestion = { viewModel.send(it) },
-                    onOpenModels = onOpenModels,
-                )
-            } else {
-                androidx.compose.animation.AnimatedContent(
-                    targetState = state.conversationId,
-                    transitionSpec = {
-                        androidx.compose.animation.fadeIn(MarkMotion.fadeSpec()) +
-                            androidx.compose.animation.slideInVertically { it / 12 } togetherWith
-                            androidx.compose.animation.fadeOut(MarkMotion.fadeSpec())
-                    },
-                    label = "conversation",
-                    modifier = Modifier.fillMaxSize(),
-                ) { _ ->
+            // Keyed on the thread, and wrapping the empty state too, so starting a new
+            // chat is a transition rather than the transcript blinking out.
+            androidx.compose.animation.AnimatedContent(
+                targetState = state.conversationId,
+                transitionSpec = {
+                    androidx.compose.animation.fadeIn(MarkMotion.fadeSpec()) +
+                        androidx.compose.animation.slideInVertically { it / 12 } togetherWith
+                        androidx.compose.animation.fadeOut(MarkMotion.fadeSpec())
+                },
+                label = "conversation",
+                modifier = Modifier.fillMaxSize(),
+            ) { _ ->
+                if (messages.isEmpty()) {
+                    ChatEmptyState(
+                        hasModel = state.hasTextModel,
+                        onSuggestion = { viewModel.send(it) },
+                        onOpenModels = onOpenModels,
+                    )
+                } else {
                     LazyColumn(
                         state = listState,
                         modifier = Modifier.fillMaxSize(),
@@ -139,6 +150,10 @@ fun ChatScreen(
                                 message = message,
                                 isStreaming = state.isGenerating && message.id == messages.last().id,
                                 onOpenSource = { url -> openUrl(context, url) },
+                                modifier = Modifier.animateItem(
+                                    fadeInSpec = MarkMotion.fadeSpec(),
+                                    placementSpec = MarkMotion.spatial(),
+                                ),
                             )
                         }
                     }
@@ -175,6 +190,26 @@ fun ChatScreen(
              * rest on the navigation bar.
              */
             modifier = Modifier.padding(bottom = composerBottomInset),
+        )
+    }
+
+    if (state.needsVisionModel) {
+        nl.markmaaktmedia.markmaaktai.ui.components.MarkDialog(
+            title = stringResource(R.string.vision_needed_title),
+            body = stringResource(R.string.vision_needed_body),
+            icon = MarkIcons.Image,
+            onDismiss = viewModel::dismissVisionNotice,
+            closeLabel = stringResource(R.string.generic_close),
+            actions = {
+                PrimaryPillButton(
+                    label = stringResource(R.string.chat_go_to_models),
+                    icon = MarkIcons.Download,
+                    onClick = {
+                        viewModel.dismissVisionNotice()
+                        onOpenModels()
+                    },
+                )
+            },
         )
     }
 
@@ -278,10 +313,12 @@ private fun ChatEmptyState(
         return
     }
 
+    // Each suggestion gets the icon for what it is about, rather than three copies of
+    // the same sparkle, which said only "this is AI" three times over.
     val suggestions = listOf(
-        stringResource(R.string.suggestion_summarise_day),
-        stringResource(R.string.suggestion_urgent),
-        stringResource(R.string.suggestion_draft_reply),
+        stringResource(R.string.suggestion_summarise_day) to MarkIcons.Today,
+        stringResource(R.string.suggestion_urgent) to MarkIcons.UrgentFilled,
+        stringResource(R.string.suggestion_draft_reply) to MarkIcons.Edit,
     )
 
     Column(
@@ -302,7 +339,9 @@ private fun ChatEmptyState(
                 painter = MarkIcons.SparkleFilled,
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                modifier = Modifier.size(38.dp),
+                modifier = Modifier
+                    .size(38.dp)
+                    .offset(x = (-1).dp),
             )
         }
         VSpace(20)
@@ -323,11 +362,11 @@ private fun ChatEmptyState(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            suggestions.forEach { suggestion ->
+            suggestions.forEach { (label, icon) ->
                 SuggestionChip(
-                    text = suggestion,
-                    icon = MarkIcons.Sparkle,
-                    onClick = { onSuggestion(suggestion) },
+                    text = label,
+                    icon = icon,
+                    onClick = { onSuggestion(label) },
                 )
             }
         }
@@ -421,6 +460,13 @@ private fun ConversationPanel(
                     .fillMaxWidth(0.84f)
                     .clip(PanelShape)
                     .background(MaterialTheme.colorScheme.surfaceContainerLow)
+                    // Stops a tap on the panel from reaching the scrim behind it,
+                    // which was closing the thing the user had just opened.
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null,
+                        onClick = {},
+                    )
                     .systemBarsPadding()
                     .padding(horizontal = 12.dp),
             ) {

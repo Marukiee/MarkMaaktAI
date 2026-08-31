@@ -1,5 +1,7 @@
 package nl.markmaaktmedia.markmaaktai.ai
 
+import nl.markmaaktmedia.markmaaktai.R
+
 /**
  * A model the app knows about. Files can also come in through the file picker, in
  * which case only the file name and the role are known.
@@ -10,8 +12,8 @@ data class ModelSpec(
     val role: ModelRole,
     val fileName: String,
     val sizeBytes: Long,
-    /** One line, shown under the name. Says what it is good at and what it costs. */
-    val summary: String,
+    /** One line shown under the name, as a string resource so it translates. */
+    val summaryRes: Int,
     val downloadUrl: String? = null,
     val engineKind: EngineKind = EngineKind.LITE_RT,
     /** The one offered on the onboarding screen and preselected in settings. */
@@ -42,7 +44,7 @@ object ModelCatalog {
             role = ModelRole.TEXT,
             fileName = "qwen2.5-1.5b-instruct-q8.task",
             sizeBytes = 1_597_913_616L,
-            summary = "The best all rounder here, and good at Dutch. Around 1.5 GB.",
+            summaryRes = R.string.model_qwen15_summary,
             downloadUrl = "https://huggingface.co/litert-community/Qwen2.5-1.5B-Instruct/resolve/main/Qwen2.5-1.5B-Instruct_multi-prefill-seq_q8_ekv1280.task",
             isRecommended = true,
         ),
@@ -52,7 +54,7 @@ object ModelCatalog {
             role = ModelRole.TEXT,
             fileName = "qwen2.5-0.5b-instruct-q8.task",
             sizeBytes = 546_660_344L,
-            summary = "Half a gigabyte and quick to answer. Fine for notification summaries.",
+            summaryRes = R.string.model_qwen05_summary,
             downloadUrl = "https://huggingface.co/litert-community/Qwen2.5-0.5B-Instruct/resolve/main/Qwen2.5-0.5B-Instruct_multi-prefill-seq_q8_ekv1280.task",
         ),
         ModelSpec(
@@ -61,7 +63,7 @@ object ModelCatalog {
             role = ModelRole.TEXT,
             fileName = "deepseek-r1-distill-qwen-1.5b-q8.task",
             sizeBytes = 1_861_094_737L,
-            summary = "Reasons its way to an answer, so it is slower and more thorough.",
+            summaryRes = R.string.model_deepseek_summary,
             downloadUrl = "https://huggingface.co/litert-community/DeepSeek-R1-Distill-Qwen-1.5B/resolve/main/DeepSeek-R1-Distill-Qwen-1.5B_multi-prefill-seq_q8_ekv1280.task",
         ),
         ModelSpec(
@@ -70,7 +72,7 @@ object ModelCatalog {
             role = ModelRole.TEXT,
             fileName = "smollm2-135m-instruct.litertlm",
             sizeBytes = 142_819_328L,
-            summary = "Tiny and instant, but it is a 135M model. Good on a very tight phone.",
+            summaryRes = R.string.model_smollm_summary,
             downloadUrl = "https://huggingface.co/litert-community/SmolLM2-135M-Instruct/resolve/main/SmolLM2_135M_Instruct.litertlm",
         ),
     )
@@ -82,7 +84,7 @@ object ModelCatalog {
             role = ModelRole.VISION,
             fileName = "fastvlm-0.5b.litertlm",
             sizeBytes = 1_156_342_768L,
-            summary = "Describes what is in a photo. Text on screenshots is read by OCR either way.",
+            summaryRes = R.string.model_fastvlm_summary,
             downloadUrl = "https://huggingface.co/litert-community/FastVLM-0.5B/resolve/main/FastVLM-0.5B.litertlm",
             isExperimental = true,
         ),
@@ -95,7 +97,7 @@ object ModelCatalog {
             role = ModelRole.SPEECH,
             fileName = "vosk-model-small-nl-0.22.zip",
             sizeBytes = 39_000_000L,
-            summary = "Offline Dutch dictation. Unpacked after downloading.",
+            summaryRes = R.string.model_vosk_nl_summary,
             downloadUrl = "https://alphacephei.com/vosk/models/vosk-model-small-nl-0.22.zip",
         ),
         ModelSpec(
@@ -104,7 +106,7 @@ object ModelCatalog {
             role = ModelRole.SPEECH,
             fileName = "vosk-model-small-en-us-0.15.zip",
             sizeBytes = 40_000_000L,
-            summary = "Offline English dictation. Unpacked after downloading.",
+            summaryRes = R.string.model_vosk_en_summary,
             downloadUrl = "https://alphacephei.com/vosk/models/vosk-model-small-en-us-0.15.zip",
         ),
     )

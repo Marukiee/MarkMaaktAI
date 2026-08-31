@@ -44,10 +44,9 @@ import nl.markmaaktmedia.markmaaktai.ui.components.SettingsGroup
 import nl.markmaaktmedia.markmaaktai.ui.components.predictiveBack
 import nl.markmaaktmedia.markmaaktai.ui.components.rememberPredictiveBack
 import nl.markmaaktmedia.markmaaktai.ui.theme.MarkIcons
-import nl.markmaaktmedia.markmaaktai.ui.update.UpdateCard
 
 /** The pages settings is split across. */
-enum class SettingsPage { Root, Look, Ai, Search, Access, Notifications, About }
+enum class SettingsPage { Root, Models, Look, Ai, Search, Access, Notifications, About }
 
 /**
  * Settings, split into pages.
@@ -131,15 +130,14 @@ fun SettingsScreen(
         when (current) {
             SettingsPage.Root -> SettingsRoot(
                 versionName = viewModel.versionName,
-                updateState = updateState,
                 activeModelName = settings.textModelPath.substringAfterLast('/'),
                 onOpen = { page = it },
-                onCheckUpdates = viewModel::checkForUpdates,
-                onDownloadUpdate = viewModel::downloadUpdate,
-                onInstallUpdate = viewModel::installUpdate,
-                onOpenReleases = { viewModel.openUrl(viewModel.releasesUrl) },
-                onDismissUpdate = viewModel::dismissUpdate,
+                onOpenModels = onOpenModels,
             )
+
+            // Models is a screen of its own, opened straight from the list, so it is
+            // never a page this switch has to draw.
+            SettingsPage.Models -> Unit
 
             SettingsPage.Look -> SettingsPageScaffold(
                 title = stringResource(R.string.settings_section_look),
@@ -197,18 +195,14 @@ fun SettingsScreen(
 @Composable
 private fun SettingsRoot(
     versionName: String,
-    updateState: nl.markmaaktmedia.markmaaktai.update.UpdateState,
     activeModelName: String,
     onOpen: (SettingsPage) -> Unit,
-    onCheckUpdates: () -> Unit,
-    onDownloadUpdate: () -> Unit,
-    onInstallUpdate: () -> Unit,
-    onOpenReleases: () -> Unit,
-    onDismissUpdate: () -> Unit,
+    onOpenModels: () -> Unit,
 ) {
     val categories = listOf(
+        Category(SettingsPage.Models, MarkIcons.Model, R.string.models_title, R.string.settings_models_summary),
         Category(SettingsPage.Look, MarkIcons.Palette, R.string.settings_section_look, R.string.settings_look_summary),
-        Category(SettingsPage.Ai, MarkIcons.Model, R.string.settings_section_ai, R.string.settings_ai_summary),
+        Category(SettingsPage.Ai, MarkIcons.Sparkle, R.string.settings_section_ai, R.string.settings_ai_summary),
         Category(SettingsPage.Search, MarkIcons.Web, R.string.settings_section_search, R.string.settings_search_summary),
         Category(SettingsPage.Access, MarkIcons.Shield, R.string.settings_section_access, R.string.settings_access_summary),
         Category(SettingsPage.Notifications, MarkIcons.Notifications, R.string.settings_section_notifications, R.string.settings_notifications_summary),
@@ -228,29 +222,24 @@ private fun SettingsRoot(
         }
 
         item {
-            UpdateCard(
-                state = updateState,
-                onCheck = onCheckUpdates,
-                onDownload = onDownloadUpdate,
-                onInstall = onInstallUpdate,
-                onOpenPage = onOpenReleases,
-                onDismiss = onDismissUpdate,
-            )
-        }
-
-        item {
             SettingsGroup(modifier = Modifier.padding(top = 8.dp)) {
                 categories.forEachIndexed { index, category ->
                     GroupedRow(
                         index = index,
                         total = categories.size,
-                        onClick = { onOpen(category.page) },
+                        onClick = {
+                            if (category.page == SettingsPage.Models) {
+                                onOpenModels()
+                            } else {
+                                onOpen(category.page)
+                            }
+                        },
                     ) {
                         CategoryRow(
                             icon = category.icon,
                             title = stringResource(category.title),
                             subtitle = when (category.page) {
-                                SettingsPage.Ai -> activeModelName.ifBlank {
+                                SettingsPage.Models -> activeModelName.ifBlank {
                                     stringResource(R.string.models_not_installed)
                                 }
 

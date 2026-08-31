@@ -117,7 +117,6 @@
     <string name="settings_searxng_url">SearXNG-adres</string>
     <string name="settings_searxng_url_desc">Een privacyvriendelijke zoekinstantie. Vul je eigen adres in als je er zelf een draait.</string>
     <string name="settings_brave_key">Brave Search API-sleutel</string>
-    <string name="settings_brave_key_desc">Optioneel. Als dit ingevuld is wordt Brave gebruikt in plaats van SearXNG.</string>
     <string name="settings_search_results">Resultaten per zoekopdracht</string>
 
     <string name="settings_section_notifications">Meldingsintelligentie</string>
@@ -261,4 +260,15 @@
     <string name="assist_ready">Wat kan ik doen?</string>
     <string name="shots_searching">Aan het zoeken</string>
     <string name="help_toggles">Zoek op het web kijkt online, en alleen als dit aanstaat. Gebruik mijn telefoon laat het antwoord putten uit je eigen meldingen en screenshots.</string>
+    <string name="model_qwen15_summary">De beste allrounder hier, en goed in Nederlands. Ongeveer 1,5 GB.</string>
+    <string name="model_qwen05_summary">Een halve gigabyte en snel met antwoorden. Prima voor samenvattingen.</string>
+    <string name="model_deepseek_summary">Redeneert naar een antwoord toe, dus trager en grondiger.</string>
+    <string name="model_smollm_summary">Piepklein en meteen klaar, maar het is een 135M-model. Goed op een volle telefoon.</string>
+    <string name="model_fastvlm_summary">Beschrijft wat er op een foto staat. Tekst op screenshots wordt sowieso met OCR gelezen.</string>
+    <string name="model_vosk_nl_summary">Nederlands inspreken zonder internet. Wordt na het downloaden uitgepakt.</string>
+    <string name="model_vosk_en_summary">Engels inspreken zonder internet. Wordt na het downloaden uitgepakt.</string>
+    <string name="settings_brave_key_desc">Optioneel. Zonder sleutel zoekt de app met DuckDuckGo, waar je niets voor nodig hebt. Een sleutel maakt het sneller en betrouwbaarder: ga naar search.brave.com/api, kies het gratis plan en plak de sleutel hier. Daar zitten een paar duizend zoekopdrachten per maand in.</string>
+    <string name="settings_models_summary">Download of kies het model dat antwoordt</string>
+    <string name="vision_needed_title">Deze foto vraagt een vision-model</string>
+    <string name="vision_needed_body">Er staat geen tekst in om te lezen, en er is niets geïnstalleerd dat naar plaatjes kan kijken. Download FastVLM bij Modellen en probeer het opnieuw.</string>
 </resources>
