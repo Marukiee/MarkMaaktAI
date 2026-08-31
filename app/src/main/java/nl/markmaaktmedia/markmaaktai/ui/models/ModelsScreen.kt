@@ -64,6 +64,25 @@ fun ModelsScreen(
         contract = ActivityResultContracts.OpenDocument(),
     ) { uri: Uri? -> uri?.let { viewModel.importFromUri(it, pickerRole) } }
 
+    // A download that fails has a reason, and it is the only thing that can tell
+    // anyone what went wrong. It gets a dialog with a copy button rather than four
+    // words in red under a row.
+    val failure = downloads.values.firstOrNull { it.error != null }
+    if (failure?.error != null) {
+        nl.markmaaktmedia.markmaaktai.ui.components.MarkErrorDialog(
+            title = stringResource(R.string.models_download_failed),
+            message = failure.error,
+            confirmLabel = stringResource(R.string.generic_close),
+            copyLabel = stringResource(R.string.chat_copy),
+            retryLabel = stringResource(R.string.generic_retry),
+            onRetry = {
+                nl.markmaaktmedia.markmaaktai.ai.ModelCatalog.byId(failure.specId)
+                    ?.let(viewModel::download)
+            },
+            onDismiss = { viewModel.cancelDownloadById(failure.specId) },
+        )
+    }
+
     LazyColumn(
         modifier = modifier.fillMaxSize(),
         contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 120.dp),

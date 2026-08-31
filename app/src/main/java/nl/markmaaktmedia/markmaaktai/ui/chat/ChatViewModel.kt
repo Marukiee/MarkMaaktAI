@@ -74,6 +74,7 @@ class ChatViewModel @Inject constructor(
     private val orchestrator: AiOrchestrator,
     private val speechInput: SpeechInputManager,
     private val imageTextExtractor: nl.markmaaktmedia.markmaaktai.ai.vision.ImageTextExtractor,
+    private val modelRepository: nl.markmaaktmedia.markmaaktai.data.repository.ModelRepository,
     private val settings: SettingsRepository,
     private val handoff: nl.markmaaktmedia.markmaaktai.ui.navigation.ChatHandoff,
 ) : ViewModel() {
@@ -181,6 +182,16 @@ class ChatViewModel @Inject constructor(
     }
 
     fun dismissVisionNotice() {
+        _uiState.update { it.copy(needsVisionModel = false) }
+    }
+
+    /** The vision model this phone can run, or null when none of them fit. */
+    fun bestVisionModel(): nl.markmaaktmedia.markmaaktai.ai.ModelSpec? =
+        modelRepository.bestModelFor(nl.markmaaktmedia.markmaaktai.ai.ModelRole.VISION)
+
+    fun downloadBestVisionModel() {
+        val spec = bestVisionModel() ?: return
+        modelRepository.startDownload(spec)
         _uiState.update { it.copy(needsVisionModel = false) }
     }
 

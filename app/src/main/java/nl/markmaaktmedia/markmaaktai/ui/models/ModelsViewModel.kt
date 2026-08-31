@@ -82,6 +82,11 @@ class ModelsViewModel @Inject constructor(
         repository.startDownload(spec)
     }
 
+    fun cancelDownloadById(specId: String) {
+        repository.cancelDownload(specId)
+        refresh()
+    }
+
     fun cancelDownload(spec: ModelSpec) {
         repository.cancelDownload(spec.id)
         refresh()

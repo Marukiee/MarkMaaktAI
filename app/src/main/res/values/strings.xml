@@ -288,4 +288,5 @@
     <string name="chat_edit_message">Edit this message</string>
     <string name="chat_previous_version">Previous version</string>
     <string name="chat_next_version">Next version</string>
+    <string name="vision_download_best">Download %1$s</string>
 </resources>

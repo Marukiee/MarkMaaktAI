@@ -122,5 +122,29 @@ object ModelCatalog {
 
     fun byId(id: String): ModelSpec? = all.firstOrNull { it.id == id }
 
+    /**
+     * The largest model of a role this phone can actually run.
+     *
+     * A model has to be read into memory in one piece, so the limit is RAM rather
+     * than storage, and the working set runs to roughly twice the file. Two thirds of
+     * total RAM is the ceiling used here: above that the system starts killing the app
+     * mid answer, which looks like a crash rather than a phone that is too small.
+     * Storage is checked as well, with head room for the unpacking a speech model
+     * needs. Null means nothing in the catalogue fits, which is worth saying plainly.
+     */
+    fun bestFor(role: ModelRole, totalRamBytes: Long, freeStorageBytes: Long): ModelSpec? {
+        val ramCeiling = (totalRamBytes * 2 / 3).coerceAtLeast(0)
+        return forRole(role)
+            .filter { spec ->
+                val working = spec.sizeBytes * 2
+                val needed = spec.sizeBytes * 2 + HEAD_ROOM_BYTES
+                working <= ramCeiling && needed <= freeStorageBytes
+            }
+            .maxByOrNull { it.sizeBytes }
+    }
+
+    /** Room for the unpacked copy of an archive, plus a little to spare. */
+    private const val HEAD_ROOM_BYTES = 300L * 1024 * 1024
+
     val all: List<ModelSpec> = textModels + visionModels + speechModels
 }

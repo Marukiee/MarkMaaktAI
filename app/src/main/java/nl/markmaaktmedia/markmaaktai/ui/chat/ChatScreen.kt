@@ -35,6 +35,8 @@ import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -205,9 +207,16 @@ fun ChatScreen(
             onDismiss = viewModel::dismissVisionNotice,
             closeLabel = stringResource(R.string.generic_close),
             actions = {
-                PrimaryPillButton(
+                val best = viewModel.bestVisionModel()
+                if (best != null) {
+                    PrimaryPillButton(
+                        label = stringResource(R.string.vision_download_best, best.displayName),
+                        icon = MarkIcons.Download,
+                        onClick = viewModel::downloadBestVisionModel,
+                    )
+                }
+                nl.markmaaktmedia.markmaaktai.ui.components.SecondaryPillButton(
                     label = stringResource(R.string.chat_go_to_models),
-                    icon = MarkIcons.Download,
                     onClick = {
                         viewModel.dismissVisionNotice()
                         onOpenModels()
@@ -321,14 +330,15 @@ private fun ChatEmptyState(
     // the same sparkle, which said only "this is AI" three times over.
     val suggestions = listOf(
         stringResource(R.string.suggestion_summarise_day) to MarkIcons.Today,
-        stringResource(R.string.suggestion_urgent) to MarkIcons.UrgentFilled,
+        stringResource(R.string.suggestion_urgent) to MarkIcons.Notifications,
         stringResource(R.string.suggestion_draft_reply) to MarkIcons.Edit,
     )
 
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(horizontal = 28.dp),
+            .verticalScroll(rememberScrollState())
+            .padding(horizontal = 28.dp, vertical = 24.dp),
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {

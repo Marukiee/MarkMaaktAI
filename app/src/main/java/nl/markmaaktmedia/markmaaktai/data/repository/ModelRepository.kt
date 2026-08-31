@@ -78,6 +78,24 @@ class ModelRepository @Inject constructor(
 
     fun modelsDir(): File = File(context.filesDir, "models").apply { mkdirs() }
 
+    /** What this phone can hold, for picking a model that will actually run. */
+    fun deviceRamBytes(): Long = runCatching {
+        val manager = context.getSystemService(Context.ACTIVITY_SERVICE) as android.app.ActivityManager
+        android.app.ActivityManager.MemoryInfo().also { manager.getMemoryInfo(it) }.totalMem
+    }.getOrDefault(0L)
+
+    fun freeStorageBytes(): Long = runCatching {
+        val stat = android.os.StatFs(modelsDir().absolutePath)
+        stat.availableBlocksLong * stat.blockSizeLong
+    }.getOrDefault(0L)
+
+    fun bestModelFor(role: ModelRole): ModelSpec? =
+        nl.markmaaktmedia.markmaaktai.ai.ModelCatalog.bestFor(
+            role = role,
+            totalRamBytes = deviceRamBytes(),
+            freeStorageBytes = freeStorageBytes(),
+        )
+
     fun speechDir(): File = File(context.filesDir, "speech").apply { mkdirs() }
 
     suspend fun installed(): List<InstalledModel> = withContext(Dispatchers.IO) {
