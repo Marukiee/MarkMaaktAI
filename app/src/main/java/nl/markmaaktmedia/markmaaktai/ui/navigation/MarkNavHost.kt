@@ -36,6 +36,7 @@ import nl.markmaaktmedia.markmaaktai.ui.models.ModelsScreen
 import nl.markmaaktmedia.markmaaktai.ui.settings.SettingsScreen
 import nl.markmaaktmedia.markmaaktai.ui.shots.ShotsScreen
 import nl.markmaaktmedia.markmaaktai.ui.theme.MarkIcons
+import nl.markmaaktmedia.markmaaktai.ui.update.TopUpdateBanner
 import nl.markmaaktmedia.markmaaktai.ui.theme.MarkMotion
 
 enum class MarkTab { Chat, Shots, Digest, Settings }
@@ -111,11 +112,15 @@ fun MarkNavHost(
                 label = "screen",
                 modifier = Modifier.fillMaxSize(),
             ) { (showModels, currentTab) ->
-                Box(
+                androidx.compose.foundation.layout.Column(
                     modifier = Modifier
                         .fillMaxSize()
                         .statusBarsPadding(),
                 ) {
+                    // Above everything, on every tab. An update the user cannot see is
+                    // an update that does not happen.
+                    TopUpdateBanner()
+                    Box(modifier = Modifier.weight(1f)) {
                     if (showModels) {
                         ModelsScreen(onBack = { modelsOpen = false })
                     } else {
@@ -137,6 +142,7 @@ fun MarkNavHost(
                             )
 
                             MarkTab.Settings -> SettingsScreen(onOpenModels = { modelsOpen = true })
+                        }
                         }
                     }
                 }

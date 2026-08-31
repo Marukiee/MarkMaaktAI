@@ -253,4 +253,7 @@
     <string name="palette_monochrome">Mono</string>
     <string name="onboarding_model_ready">Model ready</string>
     <string name="onboarding_download_continues">Carry on, the download keeps running in the background.</string>
+    <string name="models_download_done">Downloaded and ready</string>
+    <string name="models_download_failed">Download stopped, open the app to try again</string>
+    <string name="models_found_existing">Found a model already on this phone</string>
 </resources>

@@ -93,9 +93,16 @@ fun OnboardingScreen(
         contract = ActivityResultContracts.RequestPermission(),
     ) { settingsViewModel.refreshAccess() }
 
+    // The microphone dialog and the assistant settings screen cannot both be in
+    // front. Firing them together meant the system dialog was pushed away before it
+    // could be answered, which looked like the permission step doing nothing at all.
+    // The settings screen now waits for the dialog to be dealt with first.
     val microphonePermission = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission(),
-    ) { settingsViewModel.refreshAccess() }
+    ) {
+        settingsViewModel.refreshAccess()
+        settingsViewModel.openAssistantSettings()
+    }
 
     val filePicker = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenDocument(),
@@ -251,10 +258,7 @@ fun OnboardingScreen(
 
                     VoiceStep -> GrantBlock(
                         granted = access.isDefaultAssistant,
-                        onGrant = {
-                            microphonePermission.launch(Manifest.permission.RECORD_AUDIO)
-                            settingsViewModel.openAssistantSettings()
-                        },
+                        onGrant = { microphonePermission.launch(Manifest.permission.RECORD_AUDIO) },
                     )
 
                     BatteryStep -> GrantBlock(
@@ -267,18 +271,19 @@ fun OnboardingScreen(
             }
         }
 
-        Column(
+        Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 28.dp, vertical = 20.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
+                .padding(start = 28.dp, end = 20.dp, top = 12.dp, bottom = 20.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween,
         ) {
             StepDots(count = pages.size, current = step)
-            VSpace(20)
             PrimaryPillButton(
                 label = stringResource(
                     if (step == pages.lastIndex) R.string.onboarding_start else R.string.onboarding_next
                 ),
+                icon = if (step == pages.lastIndex) MarkIcons.Check else MarkIcons.ChevronRight,
                 onClick = {
                     if (step == pages.lastIndex) {
                         onFinished()
@@ -287,7 +292,6 @@ fun OnboardingScreen(
                         step++
                     }
                 },
-                modifier = Modifier.fillMaxWidth(),
             )
         }
     }

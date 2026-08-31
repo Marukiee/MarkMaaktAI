@@ -104,6 +104,11 @@ class MainActivity : ComponentActivity() {
 
     companion object {
         const val EXTRA_SUMMARY_ID = "summary_id"
-        private const val CHECK_INTERVAL_MS = 24 * 60 * 60 * 1000L
+        /**
+         * Three hours. Short enough that a release published this morning is on the
+         * banner by lunch, long enough that opening the app ten times in a row is
+         * still one request.
+         */
+        private const val CHECK_INTERVAL_MS = 3 * 60 * 60 * 1000L
     }
 }

@@ -111,6 +111,19 @@ class UpdateRepository @Inject constructor(
         }
     }
 
+    /**
+     * Streams the APK into the cache directory and hands it straight to the
+     * installer.
+     *
+     * One tap, not two. Downloading and then waiting for a second press on an
+     * "install" button adds a step for no decision: nobody downloads an update they
+     * did not want to install.
+     */
+    suspend fun downloadAndInstall(release: ReleaseInfo) {
+        val file = download(release) ?: return
+        install(file.absolutePath)
+    }
+
     /** Streams the APK into the cache directory, reporting progress as it goes. */
     suspend fun download(release: ReleaseInfo): File? {
         val url = release.apkUrl ?: run {
@@ -148,6 +161,8 @@ class UpdateRepository @Inject constructor(
                     }
                 }
                 _state.value = UpdateState.ReadyToInstall(release, target.absolutePath)
+                // Old downloads are dead weight the moment a newer one lands.
+                cleanUpOldDownloads(keepFileName = target.name)
                 target
             }.getOrElse { error ->
                 target.delete()

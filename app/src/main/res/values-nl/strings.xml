@@ -239,4 +239,7 @@
     <string name="palette_monochrome">Mono</string>
     <string name="onboarding_model_ready">Model staat klaar</string>
     <string name="onboarding_download_continues">Ga gerust verder, de download loopt op de achtergrond door.</string>
+    <string name="models_download_done">Gedownload en klaar</string>
+    <string name="models_download_failed">Download gestopt, open de app om opnieuw te proberen</string>
+    <string name="models_found_existing">Er stond al een model op deze telefoon</string>
 </resources>
