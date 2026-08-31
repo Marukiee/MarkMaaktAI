@@ -1,12 +1,16 @@
 package nl.markmaaktmedia.markmaaktai.ui.components
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -16,22 +20,27 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.requiredSize
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.SwipeToDismissBox
-import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.Text
-import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
@@ -40,10 +49,12 @@ import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import nl.markmaaktmedia.markmaaktai.ui.theme.MarkIcons
 import nl.markmaaktmedia.markmaaktai.ui.theme.MarkMotion
 import nl.markmaaktmedia.markmaaktai.ui.theme.PillShape
+import kotlinx.coroutines.launch
 import nl.markmaaktmedia.markmaaktai.ui.theme.groupedShape
 
 /** The small round count on a navigation icon. */
@@ -312,12 +323,24 @@ fun EmptyState(
 }
 
 /**
- * Swipe an item away, and let the list close the gap.
+ * Swipe an item away, with the physics MarkMySteps uses on its route planner.
  *
- * Two animations, and both matter. The row slides out under the finger, which is the
- * gesture; then the space it left collapses on a spring, which is the list reacting.
- * Removing the row the instant the swipe finishes skips the second half and makes
- * everything below jump, so the removal waits for the collapse to play.
+ * Material's SwipeToDismissBox tracks the finger one to one from the first pixel,
+ * which makes every accidental brush look like the start of a delete. This does what
+ * the reference does instead, in three stages:
+ *
+ * 1. Tension. The first 60dp of travel only moves the row 20dp, so a stray horizontal
+ *    nudge during a scroll goes nowhere and simply springs back.
+ * 2. Coming loose. Past that the row springs up to the finger on a soft spring and
+ *    then tracks it exactly, which is the moment the gesture announces itself.
+ * 3. Commit. Past 35 percent of the width the action is armed, with a haptic tick on
+ *    the crossing in both directions, and letting go flings the row off the edge.
+ *
+ * The delete fires as the fling starts rather than after it, so the row glides out
+ * while the gap closes underneath it. Cancelling settles back elastically.
+ *
+ * The icon behind fades in with the distance and never changes size. Growing it was
+ * a second thing saying what the colour and the distance already say.
  */
 @Composable
 fun <T> SwipeToDelete(
@@ -330,27 +353,20 @@ fun <T> SwipeToDelete(
     iconTint: Color = MaterialTheme.colorScheme.onErrorContainer,
     content: @Composable () -> Unit,
 ) {
+    val density = LocalDensity.current
+    val haptics = LocalHapticFeedback.current
+    val scope = rememberCoroutineScope()
+
+    val offset = remember(item) { Animatable(0f) }
+    var accumulated by remember(item) { mutableFloatStateOf(0f) }
+    var loose by remember(item) { mutableStateOf(false) }
+    var armed by remember(item) { mutableStateOf(false) }
     var removed by remember(item) { mutableStateOf(false) }
+    var widthPx by remember(item) { mutableIntStateOf(1) }
 
-    val dismissState = rememberSwipeToDismissBoxState(
-        confirmValueChange = { value ->
-            if (value == SwipeToDismissBoxValue.EndToStart && enabled) {
-                removed = true
-                true
-            } else {
-                false
-            }
-        },
-        positionalThreshold = { distance -> distance * 0.45f },
-    )
-
-    LaunchedEffect(removed) {
-        if (removed) {
-            // Long enough for the collapse to read, short enough not to feel stuck.
-            kotlinx.coroutines.delay(220)
-            onDelete(item)
-        }
-    }
+    val tensionTravel = with(density) { 60.dp.toPx() }
+    val tensionMax = with(density) { 20.dp.toPx() }
+    val revealFade = with(density) { 56.dp.toPx() }
 
     AnimatedVisibility(
         visible = !removed,
@@ -358,18 +374,18 @@ fun <T> SwipeToDelete(
             fadeOut(animationSpec = MarkMotion.fadeSpec()),
         modifier = modifier,
     ) {
-        SwipeToDismissBox(
-            state = dismissState,
-            enableDismissFromStartToEnd = false,
-            enableDismissFromEndToStart = enabled,
-            backgroundContent = {
-                val progress = dismissState.progress.coerceIn(0f, 1f)
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .onSizeChanged { widthPx = it.width.coerceAtLeast(1) },
+        ) {
+            val shown = -offset.value
+            if (shown > 0.5f) {
                 Box(
                     modifier = Modifier
-                        .fillMaxSize()
+                        .matchParentSize()
                         .clip(shape)
-                        .background(background)
-                        .padding(horizontal = 24.dp),
+                        .background(background),
                     contentAlignment = Alignment.CenterEnd,
                 ) {
                     Icon(
@@ -377,21 +393,117 @@ fun <T> SwipeToDelete(
                         contentDescription = null,
                         tint = iconTint,
                         modifier = Modifier
-                            .size(24.dp)
-                            .graphicsLayer {
-                                // The bin grows as the swipe commits, so the point of
-                                // no return is visible before the finger lifts.
-                                val scale = 0.7f + progress * 0.5f
-                                scaleX = scale
-                                scaleY = scale
-                            },
+                            .padding(end = 24.dp)
+                            .size(22.dp)
+                            .graphicsLayer { alpha = (shown / revealFade).coerceIn(0f, 1f) },
                     )
                 }
-            },
-            content = { content() },
-        )
+            }
+
+            Box(
+                modifier = Modifier
+                    .offset { IntOffset(offset.value.toInt(), 0) }
+                    .pointerInput(item, enabled) {
+                        if (!enabled) return@pointerInput
+                        detectHorizontalDragGestures(
+                            onDragStart = {
+                                accumulated = 0f
+                                loose = false
+                                armed = false
+                            },
+                            onHorizontalDrag = { change, delta ->
+                                change.consume()
+                                // Leftwards only, and never past zero on the way back.
+                                accumulated = (accumulated + delta).coerceAtMost(0f)
+                                val travelled = -accumulated
+
+                                if (!loose) {
+                                    if (travelled < tensionTravel) {
+                                        scope.launch {
+                                            offset.snapTo(-tensionMax * (travelled / tensionTravel))
+                                        }
+                                        return@detectHorizontalDragGestures
+                                    }
+                                    loose = true
+                                    haptics.performHapticFeedback(
+                                        HapticFeedbackType.LongPress
+                                    )
+                                    scope.launch {
+                                        offset.animateTo(
+                                            accumulated,
+                                            spring(
+                                                dampingRatio = 0.8f,
+                                                stiffness = 200f,
+                                            ),
+                                        )
+                                    }
+                                    return@detectHorizontalDragGestures
+                                }
+
+                                val nowArmed = travelled > widthPx * CommitFraction
+                                if (nowArmed != armed) {
+                                    armed = nowArmed
+                                    haptics.performHapticFeedback(
+                                        HapticFeedbackType.LongPress
+                                    )
+                                }
+                                scope.launch { offset.snapTo(accumulated) }
+                            },
+                            onDragEnd = {
+                                if (armed) {
+                                    removed = true
+                                    // Fired now, not after the fling, so the gap closes
+                                    // in step with the row gliding away.
+                                    onDelete(item)
+                                    scope.launch {
+                                        offset.animateTo(
+                                            -widthPx * 1.1f,
+                                            tween(
+                                                durationMillis = 260,
+                                                easing = MarkMotion.Standard,
+                                            ),
+                                        )
+                                    }
+                                } else {
+                                    scope.launch {
+                                        offset.animateTo(
+                                            0f,
+                                            spring(
+                                                dampingRatio = 0.75f,
+                                                stiffness = 1500f,
+                                            ),
+                                        )
+                                    }
+                                }
+                                loose = false
+                                armed = false
+                                accumulated = 0f
+                            },
+                            onDragCancel = {
+                                scope.launch {
+                                    offset.animateTo(
+                                        0f,
+                                        spring(
+                                            dampingRatio = 0.75f,
+                                            stiffness = 1500f,
+                                        ),
+                                    )
+                                }
+                                loose = false
+                                armed = false
+                                accumulated = 0f
+                            },
+                        )
+                    },
+            ) {
+                content()
+            }
+        }
     }
 }
+
+/** How far across the row the gesture has to go before letting go deletes. */
+private const val CommitFraction = 0.35f
 
 /** A tappable suggestion under an empty chat. */
 @Composable
