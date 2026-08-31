@@ -269,4 +269,7 @@
     <string name="onboarding_permissions_title">A few permissions</string>
     <string name="onboarding_permissions_body">The microphone for speaking, the camera and your photos for asking about an image, and notifications so summaries can reach you. Say no to any of them and the rest still works.</string>
     <string name="help_title">What this does</string>
+    <string name="chat_pin">Pin to the top</string>
+    <string name="chat_unpin">Unpin</string>
+    <string name="chat_conversation_actions">More for this conversation</string>
 </resources>

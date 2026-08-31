@@ -10,6 +10,7 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.fadeIn
+import androidx.compose.animation.togetherWith
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
@@ -111,17 +112,28 @@ fun ChatScreen(
                     onOpenModels = onOpenModels,
                 )
             } else {
-                LazyColumn(
-                    state = listState,
+                androidx.compose.animation.AnimatedContent(
+                    targetState = state.conversationId,
+                    transitionSpec = {
+                        androidx.compose.animation.fadeIn(MarkMotion.fadeSpec()) +
+                            androidx.compose.animation.slideInVertically { it / 12 } togetherWith
+                            androidx.compose.animation.fadeOut(MarkMotion.fadeSpec())
+                    },
+                    label = "conversation",
                     modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(top = 8.dp, bottom = 16.dp),
-                ) {
-                    items(messages, key = { it.id }) { message ->
-                        MessageBubble(
-                            message = message,
-                            isStreaming = state.isGenerating && message.id == messages.last().id,
-                            onOpenSource = { url -> openUrl(context, url) },
-                        )
+                ) { _ ->
+                    LazyColumn(
+                        state = listState,
+                        modifier = Modifier.fillMaxSize(),
+                        contentPadding = PaddingValues(top = 8.dp, bottom = 16.dp),
+                    ) {
+                        items(messages, key = { it.id }) { message ->
+                            MessageBubble(
+                                message = message,
+                                isStreaming = state.isGenerating && message.id == messages.last().id,
+                                onOpenSource = { url -> openUrl(context, url) },
+                            )
+                        }
                     }
                 }
             }

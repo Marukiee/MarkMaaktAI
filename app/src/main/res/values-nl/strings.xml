@@ -255,4 +255,7 @@
     <string name="onboarding_permissions_title">Een paar rechten</string>
     <string name="onboarding_permissions_body">De microfoon om te praten, de camera en je foto\'s om iets over een afbeelding te vragen, en meldingen zodat samenvattingen je bereiken. Weiger er gerust een, de rest blijft werken.</string>
     <string name="help_title">Wat dit doet</string>
+    <string name="chat_pin">Bovenaan vastzetten</string>
+    <string name="chat_unpin">Losmaken</string>
+    <string name="chat_conversation_actions">Meer voor dit gesprek</string>
 </resources>

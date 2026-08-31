@@ -56,6 +56,8 @@ object MarkIcons {
     val Copy: Painter @Composable get() = painterResource(R.drawable.sym_content_copy)
     val Link: Painter @Composable get() = painterResource(R.drawable.sym_link)
     val History: Painter @Composable get() = painterResource(R.drawable.sym_history)
+    val Pin: Painter @Composable get() = painterResource(R.drawable.sym_keep)
+    val PinOff: Painter @Composable get() = painterResource(R.drawable.sym_keep_off)
     val NewChat: Painter @Composable get() = painterResource(R.drawable.sym_add_comment)
     val Sparkle: Painter @Composable get() = painterResource(R.drawable.sym_auto_awesome)
     val SparkleFilled: Painter @Composable get() = painterResource(R.drawable.sym_auto_awesome_filled)
