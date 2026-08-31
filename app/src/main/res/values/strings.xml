@@ -256,4 +256,16 @@
     <string name="models_download_done">Downloaded and ready</string>
     <string name="models_download_failed">Download stopped, open the app to try again</string>
     <string name="models_found_existing">Found a model already on this phone</string>
+    <string name="crash_title">The app closed unexpectedly</string>
+    <string name="settings_last_crash">Last crash</string>
+    <string name="settings_last_crash_present">A report is stored, tap to read and copy it</string>
+    <string name="settings_last_crash_none">Nothing stored</string>
+    <string name="settings_look_summary">Theme, accent colour, pure black</string>
+    <string name="settings_ai_summary">Model, creativity, hardware acceleration</string>
+    <string name="settings_search_summary">Search instance and results</string>
+    <string name="settings_access_summary">Notifications, battery, assistant</string>
+    <string name="settings_notifications_summary">When a burst becomes a summary</string>
+    <string name="settings_about_summary">Version, source, crash report</string>
+    <string name="onboarding_permissions_title">A few permissions</string>
+    <string name="onboarding_permissions_body">The microphone for speaking, the camera and your photos for asking about an image, and notifications so summaries can reach you. Say no to any of them and the rest still works.</string>
 </resources>

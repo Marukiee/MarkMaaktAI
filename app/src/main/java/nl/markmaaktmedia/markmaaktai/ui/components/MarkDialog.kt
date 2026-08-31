@@ -149,16 +149,25 @@ fun MarkDialog(
     }
 }
 
-/** The dialog shown when something failed, with the detail kept readable. */
+/**
+ * The dialog shown when something failed.
+ *
+ * Always has a copy button. A failure message is the one piece of text in the app
+ * that someone needs to get off the phone and into a report, and selecting a
+ * paragraph out of a dialog with a fingertip is not a way to do that.
+ */
 @Composable
 fun MarkErrorDialog(
     title: String,
     message: String,
     onDismiss: () -> Unit,
     confirmLabel: String,
+    copyLabel: String,
     retryLabel: String? = null,
     onRetry: (() -> Unit)? = null,
 ) {
+    val clipboard = androidx.compose.ui.platform.LocalClipboardManager.current
+
     MarkDialog(
         title = title,
         body = message,
@@ -166,6 +175,13 @@ fun MarkErrorDialog(
         iconTint = MaterialTheme.colorScheme.error,
         onDismiss = onDismiss,
         actions = {
+            SecondaryPillButton(
+                label = copyLabel,
+                icon = MarkIcons.Copy,
+                onClick = {
+                    clipboard.setText(androidx.compose.ui.text.AnnotatedString(message))
+                },
+            )
             if (retryLabel != null && onRetry != null) {
                 SecondaryPillButton(label = retryLabel, onClick = { onDismiss(); onRetry() })
             }

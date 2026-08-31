@@ -25,6 +25,7 @@ import nl.markmaaktmedia.markmaaktai.data.prefs.UserSettings
 import nl.markmaaktmedia.markmaaktai.service.notifications.MarkNotificationListenerService
 import nl.markmaaktmedia.markmaaktai.update.UpdateRepository
 import nl.markmaaktmedia.markmaaktai.update.UpdateState
+import nl.markmaaktmedia.markmaaktai.util.CrashReporter
 import javax.inject.Inject
 
 /** Which system level permissions are in place. Re-read every time the screen shows. */
@@ -39,6 +40,7 @@ class SettingsViewModel @Inject constructor(
     private val settings: SettingsRepository,
     private val updateRepository: UpdateRepository,
     private val context: Context,
+    private val crashReporter: CrashReporter,
 ) : ViewModel() {
 
     val userSettings: StateFlow<UserSettings> = settings.settings
@@ -51,6 +53,26 @@ class SettingsViewModel @Inject constructor(
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), UpdateState.Idle)
 
     val versionName: String = BuildConfig.VERSION_NAME
+
+    private val _crashReport = MutableStateFlow<String?>(null)
+
+    /** The stored crash, once the user asks to see it. */
+    val crashReport: StateFlow<String?> = _crashReport.asStateFlow()
+
+    val hasCrashReport: Boolean get() = crashReporter.lastCrash() != null
+
+    fun showLastCrash() {
+        _crashReport.value = crashReporter.lastCrash() ?: NO_CRASH
+    }
+
+    fun dismissCrashReport() {
+        _crashReport.value = null
+    }
+
+    fun clearCrashReport() {
+        crashReporter.clear()
+        _crashReport.value = null
+    }
 
     init {
         refreshAccess()
@@ -186,6 +208,7 @@ class SettingsViewModel @Inject constructor(
     private companion object {
         /** Six hours, so opening settings a few times in a row is not six requests. */
         const val CHECK_INTERVAL_MS = 6 * 60 * 60 * 1000L
+        const val NO_CRASH = "No crash has been recorded."
     }
 
     private fun isDefaultAssistant(): Boolean {

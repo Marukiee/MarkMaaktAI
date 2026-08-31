@@ -6,26 +6,32 @@ import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
-import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -35,6 +41,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
@@ -55,7 +62,7 @@ import nl.markmaaktmedia.markmaaktai.ui.components.VSpace
 import nl.markmaaktmedia.markmaaktai.ui.components.bouncyClickable
 import nl.markmaaktmedia.markmaaktai.ui.theme.CardSquircle
 import nl.markmaaktmedia.markmaaktai.ui.theme.MarkIcons
-import nl.markmaaktmedia.markmaaktai.ui.theme.SheetSquircle
+import nl.markmaaktmedia.markmaaktai.ui.theme.MarkMotion
 
 @Composable
 fun ChatScreen(
@@ -147,23 +154,27 @@ fun ChatScreen(
             message = message,
             onDismiss = viewModel::dismissError,
             confirmLabel = stringResource(R.string.generic_close),
+            copyLabel = stringResource(R.string.chat_copy),
             retryLabel = stringResource(R.string.generic_retry).takeIf { state.lastQuestion.isNotBlank() },
             onRetry = { viewModel.retryLast() }.takeIf { state.lastQuestion.isNotBlank() },
         )
     }
 
-    if (historyOpen) {
-        ConversationHistorySheet(
-            conversations = conversations,
-            currentId = state.conversationId,
-            onOpen = {
-                viewModel.openConversation(it)
-                historyOpen = false
-            },
-            onDelete = viewModel::deleteConversation,
-            onDismiss = { historyOpen = false },
-        )
-    }
+    ConversationPanel(
+        open = historyOpen,
+        conversations = conversations,
+        currentId = state.conversationId,
+        onOpen = {
+            viewModel.openConversation(it)
+            historyOpen = false
+        },
+        onNew = {
+            viewModel.newConversation()
+            historyOpen = false
+        },
+        onDelete = viewModel::deleteConversation,
+        onDismiss = { historyOpen = false },
+    )
 }
 
 /**
@@ -276,76 +287,124 @@ private fun ChatEmptyState(
     }
 }
 
+/**
+ * The conversation list, sliding in from the left edge.
+ *
+ * The scrim fades in with it and swallows taps, so the panel closes the way every
+ * drawer does. It sits above the whole screen rather than inside the chat column,
+ * because a panel that stops short of the status bar reads as a card that failed to
+ * position itself.
+ */
 @Composable
-private fun ConversationHistorySheet(
+private fun ConversationPanel(
+    open: Boolean,
     conversations: List<ConversationEntity>,
     currentId: Long,
     onOpen: (Long) -> Unit,
+    onNew: () -> Unit,
     onDelete: (Long) -> Unit,
     onDismiss: () -> Unit,
 ) {
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val scrimAlpha by animateFloatAsState(
+        targetValue = if (open) 0.45f else 0f,
+        animationSpec = MarkMotion.fadeSpec(),
+        label = "panelScrim",
+    )
 
-    ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        sheetState = sheetState,
-        shape = SheetSquircle,
-        containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-        contentWindowInsets = { WindowInsets(0) },
-    ) {
-        Column(
+    if (!open && scrimAlpha <= 0.001f) return
+
+    BackHandler(enabled = open, onBack = onDismiss)
+
+    Box(modifier = Modifier.fillMaxSize()) {
+        Box(
             modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp)
-                .navigationBarsPadding(),
-        ) {
-            Text(
-                text = stringResource(R.string.chat_history),
-                style = MaterialTheme.typography.titleLarge,
-                modifier = Modifier.padding(start = 4.dp, bottom = 14.dp),
-            )
-
-            if (conversations.isEmpty()) {
-                Text(
-                    text = stringResource(R.string.chat_history_empty),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(start = 4.dp, bottom = 32.dp),
+                .fillMaxSize()
+                .background(Color.Black.copy(alpha = scrimAlpha))
+                .clickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = null,
+                    onClick = onDismiss,
                 )
-                return@Column
-            }
+        )
 
-            LazyColumn(
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-                contentPadding = PaddingValues(bottom = 24.dp),
+        AnimatedVisibility(
+            visible = open,
+            enter = slideInHorizontally(animationSpec = MarkMotion.spatial()) { -it },
+            exit = slideOutHorizontally(animationSpec = MarkMotion.spatial()) { -it },
+            modifier = Modifier.align(Alignment.CenterStart),
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxHeight()
+                    .fillMaxWidth(0.84f)
+                    .clip(PanelShape)
+                    .background(MaterialTheme.colorScheme.surfaceContainerLow)
+                    .systemBarsPadding()
+                    .padding(horizontal = 12.dp),
             ) {
-                items(conversations, key = { it.id }) { conversation ->
-                    SwipeToDelete(
-                        item = conversation,
-                        onDelete = { onDelete(it.id) },
-                        shape = CardSquircle,
-                    ) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clip(CardSquircle)
-                                .background(
-                                    if (conversation.id == currentId) {
-                                        MaterialTheme.colorScheme.secondaryContainer
-                                    } else {
-                                        MaterialTheme.colorScheme.surfaceContainer
-                                    }
-                                )
-                                .bouncyClickable { onOpen(conversation.id) }
-                                .padding(horizontal = 18.dp, vertical = 16.dp),
-                            verticalAlignment = Alignment.CenterVertically,
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 8.dp, bottom = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        text = stringResource(R.string.chat_history),
+                        style = MaterialTheme.typography.titleLarge,
+                        modifier = Modifier
+                            .weight(1f)
+                            .padding(start = 8.dp),
+                    )
+                    MarkIconButton(
+                        icon = MarkIcons.NewChat,
+                        contentDescription = stringResource(R.string.chat_new_conversation),
+                        onClick = onNew,
+                        background = MaterialTheme.colorScheme.surfaceContainerHigh,
+                    )
+                }
+
+                if (conversations.isEmpty()) {
+                    Text(
+                        text = stringResource(R.string.chat_history_empty),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(start = 8.dp),
+                    )
+                    return@Column
+                }
+
+                LazyColumn(
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                    contentPadding = PaddingValues(bottom = 24.dp),
+                ) {
+                    items(conversations, key = { it.id }) { conversation ->
+                        SwipeToDelete(
+                            item = conversation,
+                            onDelete = { onDelete(it.id) },
+                            shape = CardSquircle,
                         ) {
-                            Text(
-                                text = conversation.title,
-                                style = MaterialTheme.typography.bodyLarge,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                            )
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(CardSquircle)
+                                    .background(
+                                        if (conversation.id == currentId) {
+                                            MaterialTheme.colorScheme.secondaryContainer
+                                        } else {
+                                            MaterialTheme.colorScheme.surfaceContainer
+                                        }
+                                    )
+                                    .bouncyClickable { onOpen(conversation.id) }
+                                    .padding(horizontal = 18.dp, vertical = 16.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Text(
+                                    text = conversation.title,
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                )
+                            }
                         }
                     }
                 }
@@ -353,6 +412,12 @@ private fun ConversationHistorySheet(
         }
     }
 }
+
+/** Square against the screen edge, rounded on the side that faces the content. */
+private val PanelShape = androidx.compose.foundation.shape.RoundedCornerShape(
+    topEnd = 28.dp,
+    bottomEnd = 28.dp,
+)
 
 private fun openUrl(context: Context, url: String) {
     runCatching {

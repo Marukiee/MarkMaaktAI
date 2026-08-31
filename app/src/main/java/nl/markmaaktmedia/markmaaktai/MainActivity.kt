@@ -25,7 +25,9 @@ import nl.markmaaktmedia.markmaaktai.ui.navigation.MarkNavHost
 import nl.markmaaktmedia.markmaaktai.ui.navigation.MarkTab
 import nl.markmaaktmedia.markmaaktai.ui.onboarding.OnboardingScreen
 import nl.markmaaktmedia.markmaaktai.ui.theme.MarkTheme
+import nl.markmaaktmedia.markmaaktai.ui.components.MarkErrorDialog
 import nl.markmaaktmedia.markmaaktai.update.UpdateRepository
+import nl.markmaaktmedia.markmaaktai.util.CrashReporter
 import javax.inject.Inject
 
 @AndroidEntryPoint
@@ -36,6 +38,8 @@ class MainActivity : ComponentActivity() {
     @Inject lateinit var handoff: ChatHandoff
 
     @Inject lateinit var updateRepository: UpdateRepository
+
+    @Inject lateinit var crashReporter: CrashReporter
 
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
@@ -48,6 +52,11 @@ class MainActivity : ComponentActivity() {
             val settings by settingsRepository.settings.collectAsState(initial = UserSettings())
             var onboardingDone by remember { mutableStateOf<Boolean?>(null) }
             val scope = rememberCoroutineScope()
+
+            // Android takes the reason for a crash with it when it kills the process.
+            // The trace was stored on the way down, so it is offered here, once, with
+            // a button to copy it. Nothing is sent anywhere.
+            var crash by remember { mutableStateOf(crashReporter.lastCrash()) }
 
             // Null until the stored value has actually arrived, so a fresh launch does
             // not flash the onboarding at someone who finished it months ago.
@@ -82,6 +91,19 @@ class MainActivity : ComponentActivity() {
                             startTab = if (openSummary) MarkTab.Digest else MarkTab.Chat,
                         )
                     }
+                }
+
+                crash?.let { report ->
+                    MarkErrorDialog(
+                        title = getString(R.string.crash_title),
+                        message = report,
+                        confirmLabel = getString(R.string.generic_close),
+                        copyLabel = getString(R.string.chat_copy),
+                        onDismiss = {
+                            crashReporter.clear()
+                            crash = null
+                        },
+                    )
                 }
             }
         }

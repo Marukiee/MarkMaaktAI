@@ -1,18 +1,35 @@
 package nl.markmaaktmedia.markmaaktai.ui.settings
 
+import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -20,22 +37,29 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import nl.markmaaktmedia.markmaaktai.BuildConfig
 import nl.markmaaktmedia.markmaaktai.R
 import nl.markmaaktmedia.markmaaktai.data.prefs.ThemeMode
 import nl.markmaaktmedia.markmaaktai.ui.components.GroupedRow
-import nl.markmaaktmedia.markmaaktai.ui.components.SectionHeader
+import nl.markmaaktmedia.markmaaktai.ui.components.MarkIconButton
 import nl.markmaaktmedia.markmaaktai.ui.components.SettingsGroup
-import nl.markmaaktmedia.markmaaktai.ui.components.VSpace
 import nl.markmaaktmedia.markmaaktai.ui.theme.MarkIcons
 import nl.markmaaktmedia.markmaaktai.ui.update.UpdateCard
 
+/** The pages settings is split across. */
+enum class SettingsPage { Root, Look, Ai, Search, Access, Notifications, About }
+
 /**
- * Settings.
+ * Settings, split into pages.
  *
- * Laid out as blocks of rows rather than one long list with dividers. Each block is
- * shaped like a single slab that has been cut, which does the grouping visually and
- * means the section headers can stay small instead of carrying all the structure.
+ * Everything used to live on one scroll, which meant finding the notification word
+ * threshold involved passing every colour and every slider on the way down. A short
+ * list of named categories is faster to scan than a long list of controls, and each
+ * page is then small enough to take in at once.
+ *
+ * The pages are a local state machine rather than navigation destinations. They are
+ * one screen's internal structure, not places you should be able to arrive at from a
+ * notification, and keeping them out of the back stack means leaving settings leaves
+ * settings instead of walking back up through it.
  */
 @Composable
 fun SettingsScreen(
@@ -49,10 +73,12 @@ fun SettingsScreen(
     val lifecycleOwner = LocalLifecycleOwner.current
     val systemDark = isSystemInDarkTheme()
 
-    // The three system permissions can be changed outside the app, so they are
-    // re-read every time this screen comes back to the front.
-    androidx.compose.runtime.LaunchedEffect(Unit) { viewModel.checkOnOpen() }
+    var page by remember { mutableStateOf(SettingsPage.Root) }
 
+    LaunchedEffect(Unit) { viewModel.checkOnOpen() }
+
+    // The system permissions can be changed outside the app, so they are re-read
+    // every time this screen comes back to the front.
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) viewModel.refreshAccess()
@@ -61,312 +87,243 @@ fun SettingsScreen(
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
 
+    BackHandler(enabled = page != SettingsPage.Root) { page = SettingsPage.Root }
+
+    val crashReport by viewModel.crashReport.collectAsStateWithLifecycle()
+    crashReport?.let { report ->
+        nl.markmaaktmedia.markmaaktai.ui.components.MarkErrorDialog(
+            title = stringResource(R.string.settings_last_crash),
+            message = report,
+            confirmLabel = stringResource(R.string.generic_close),
+            copyLabel = stringResource(R.string.chat_copy),
+            retryLabel = stringResource(R.string.generic_delete),
+            onRetry = viewModel::clearCrashReport,
+            onDismiss = viewModel::dismissCrashReport,
+        )
+    }
+
     val darkPreview = when (settings.themeMode) {
         ThemeMode.SYSTEM -> systemDark
         ThemeMode.LIGHT -> false
         ThemeMode.DARK -> true
     }
 
-    LazyColumn(
+    AnimatedContent(
+        targetState = page,
+        transitionSpec = {
+            // Forward goes left, back goes right, so the hierarchy is legible from
+            // the movement alone.
+            val forward = targetState != SettingsPage.Root
+            val direction = if (forward) 1 else -1
+            (slideInHorizontally { it / 3 * direction } + fadeIn())
+                .togetherWith(slideOutHorizontally { -it / 3 * direction } + fadeOut())
+        },
+        label = "settingsPage",
         modifier = modifier.fillMaxSize(),
-        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 130.dp),
-    ) {
-        item {
-            Text(
-                text = stringResource(R.string.settings_title),
-                style = MaterialTheme.typography.headlineMedium,
-                modifier = Modifier.padding(start = 6.dp, top = 12.dp, bottom = 8.dp),
+    ) { current ->
+        when (current) {
+            SettingsPage.Root -> SettingsRoot(
+                versionName = viewModel.versionName,
+                updateState = updateState,
+                activeModelName = settings.textModelPath.substringAfterLast('/'),
+                onOpen = { page = it },
+                onCheckUpdates = viewModel::checkForUpdates,
+                onDownloadUpdate = viewModel::downloadUpdate,
+                onInstallUpdate = viewModel::installUpdate,
+                onOpenReleases = { viewModel.openUrl(viewModel.releasesUrl) },
+                onDismissUpdate = viewModel::dismissUpdate,
             )
-        }
 
-        item {
-            UpdateCard(
-                state = updateState,
-                onCheck = viewModel::checkForUpdates,
-                onDownload = viewModel::downloadUpdate,
-                onInstall = viewModel::installUpdate,
-                onOpenPage = { viewModel.openUrl(viewModel.releasesUrl) },
-                onDismiss = viewModel::dismissUpdate,
-            )
-        }
-
-        // Appearance
-        item { SectionHeader(stringResource(R.string.settings_section_look)) }
-        item {
-            SettingsGroup {
-                GroupedRow(index = 0, total = 4) {
-                    Column(modifier = Modifier.padding(horizontal = 18.dp, vertical = 14.dp)) {
-                        Text(
-                            text = stringResource(R.string.settings_theme),
-                            style = MaterialTheme.typography.bodyLarge,
-                        )
-                        VSpace(12)
-                        SegmentedPillSwitch(
-                            options = listOf(
-                                stringResource(R.string.settings_theme_system),
-                                stringResource(R.string.settings_theme_light),
-                                stringResource(R.string.settings_theme_dark),
-                            ),
-                            selectedIndex = when (settings.themeMode) {
-                                ThemeMode.SYSTEM -> 0
-                                ThemeMode.LIGHT -> 1
-                                ThemeMode.DARK -> 2
-                            },
-                            onSelect = { index ->
-                                viewModel.setThemeMode(
-                                    when (index) {
-                                        1 -> ThemeMode.LIGHT
-                                        2 -> ThemeMode.DARK
-                                        else -> ThemeMode.SYSTEM
-                                    }
-                                )
-                            },
-                        )
-                    }
-                }
-                GroupedRow(index = 1, total = 4) {
-                    ColourSeedRow(
-                        selected = settings.colourSeed,
-                        onSelect = viewModel::setColourSeed,
-                    )
-                }
-                GroupedRow(index = 2, total = 4) {
-                    PaletteStyleRow(
-                        selected = settings.paletteStyle,
-                        seed = settings.colourSeed,
-                        dark = darkPreview,
-                        onSelect = viewModel::setPaletteStyle,
-                    )
-                }
-                GroupedRow(index = 3, total = 4) {
-                    SwitchRow(
-                        title = stringResource(R.string.settings_pure_black),
-                        subtitle = stringResource(R.string.settings_pure_black_desc),
-                        checked = settings.pureBlack,
-                        onCheckedChange = viewModel::setPureBlack,
-                        help = stringResource(R.string.help_pure_black),
-                    )
-                }
+            SettingsPage.Look -> SettingsPageScaffold(
+                title = stringResource(R.string.settings_section_look),
+                onBack = { page = SettingsPage.Root },
+            ) {
+                LookSettings(
+                    settings = settings,
+                    darkPreview = darkPreview,
+                    viewModel = viewModel,
+                )
             }
-        }
 
-        // The model and how it answers
-        item { SectionHeader(stringResource(R.string.settings_section_ai)) }
-        item {
-            SettingsGroup {
-                GroupedRow(index = 0, total = 4, onClick = onOpenModels) {
-                    ActionRow(
-                        title = stringResource(R.string.models_title),
-                        subtitle = settings.textModelPath.substringAfterLast('/')
-                            .ifBlank { stringResource(R.string.models_not_installed) },
-                        icon = MarkIcons.Model,
-                        onClick = onOpenModels,
-                    )
-                }
-                GroupedRow(index = 1, total = 4) {
-                    SliderRow(
-                        title = stringResource(R.string.settings_temperature),
-                        valueLabel = String.format(java.util.Locale.getDefault(), "%.1f", settings.temperature),
-                        value = settings.temperature,
-                        range = 0.1f..1.5f,
-                        steps = 13,
-                        help = stringResource(R.string.help_temperature),
-                        onValueChange = viewModel::setTemperature,
-                    )
-                }
-                GroupedRow(index = 2, total = 4) {
-                    SliderRow(
-                        title = stringResource(R.string.settings_max_tokens),
-                        valueLabel = settings.maxTokens.toString(),
-                        value = settings.maxTokens.toFloat(),
-                        range = 128f..768f,
-                        steps = 4,
-                        help = stringResource(R.string.help_max_tokens),
-                        onValueChange = { viewModel.setMaxTokens(it.toInt()) },
-                    )
-                }
-                GroupedRow(index = 3, total = 4) {
-                    SwitchRow(
-                        title = stringResource(R.string.settings_gpu),
-                        subtitle = stringResource(R.string.settings_gpu_desc),
-                        checked = settings.useGpu,
-                        onCheckedChange = viewModel::setUseGpu,
-                        help = stringResource(R.string.help_gpu),
-                    )
-                }
+            SettingsPage.Ai -> SettingsPageScaffold(
+                title = stringResource(R.string.settings_section_ai),
+                onBack = { page = SettingsPage.Root },
+            ) {
+                AiSettings(settings = settings, viewModel = viewModel, onOpenModels = onOpenModels)
             }
-        }
 
-        // Web search
-        item { SectionHeader(stringResource(R.string.settings_section_search)) }
-        item {
-            SettingsGroup {
-                GroupedRow(index = 0, total = 3) {
-                    TextFieldRow(
-                        title = stringResource(R.string.settings_searxng_url),
-                        value = settings.searxngUrl,
-                        placeholder = BuildConfig.DEFAULT_SEARXNG_URL,
-                        onValueChange = viewModel::setSearxngUrl,
-                        help = stringResource(R.string.settings_searxng_url_desc),
-                    )
-                }
-                GroupedRow(index = 1, total = 3) {
-                    TextFieldRow(
-                        title = stringResource(R.string.settings_brave_key),
-                        value = settings.braveApiKey,
-                        placeholder = stringResource(R.string.settings_brave_key_hint),
-                        onValueChange = viewModel::setBraveApiKey,
-                        help = stringResource(R.string.settings_brave_key_desc),
-                    )
-                }
-                GroupedRow(index = 2, total = 3) {
-                    SliderRow(
-                        title = stringResource(R.string.settings_search_results),
-                        valueLabel = settings.searchResultCount.toString(),
-                        value = settings.searchResultCount.toFloat(),
-                        range = 2f..8f,
-                        steps = 5,
-                        onValueChange = { viewModel.setSearchResultCount(it.toInt()) },
-                    )
-                }
+            SettingsPage.Search -> SettingsPageScaffold(
+                title = stringResource(R.string.settings_section_search),
+                onBack = { page = SettingsPage.Root },
+            ) {
+                SearchSettings(settings = settings, viewModel = viewModel)
             }
-        }
 
-        // Permissions that live in system settings
-        item { SectionHeader(stringResource(R.string.settings_section_access)) }
-        item {
-            SettingsGroup {
-                GroupedRow(index = 0, total = 3, onClick = viewModel::openNotificationAccess) {
-                    ActionRow(
-                        title = stringResource(R.string.settings_notification_access),
-                        subtitle = stringResource(R.string.settings_notification_access_desc),
-                        trailing = accessLabel(access.notificationListener),
-                        icon = MarkIcons.Notifications,
-                        onClick = viewModel::openNotificationAccess,
-                    )
-                }
-                GroupedRow(index = 1, total = 3, onClick = viewModel::requestBatteryExemption) {
-                    ActionRow(
-                        title = stringResource(R.string.settings_battery),
-                        subtitle = stringResource(R.string.settings_battery_desc),
-                        trailing = accessLabel(access.batteryUnrestricted),
-                        icon = MarkIcons.Battery,
-                        onClick = viewModel::requestBatteryExemption,
-                        help = stringResource(R.string.help_battery),
-                    )
-                }
-                GroupedRow(index = 2, total = 3, onClick = viewModel::openAssistantSettings) {
-                    ActionRow(
-                        title = stringResource(R.string.settings_assistant),
-                        subtitle = stringResource(R.string.settings_assistant_desc),
-                        trailing = accessLabel(access.isDefaultAssistant),
-                        icon = MarkIcons.Assistant,
-                        onClick = viewModel::openAssistantSettings,
-                        help = stringResource(R.string.help_assistant),
-                    )
-                }
+            SettingsPage.Access -> SettingsPageScaffold(
+                title = stringResource(R.string.settings_section_access),
+                onBack = { page = SettingsPage.Root },
+            ) {
+                AccessSettings(access = access, viewModel = viewModel)
             }
-        }
 
-        // Notification intelligence
-        item { SectionHeader(stringResource(R.string.settings_section_notifications)) }
-        item {
-            SettingsGroup {
-                GroupedRow(index = 0, total = 6) {
-                    SwitchRow(
-                        title = stringResource(R.string.settings_notification_enabled),
-                        subtitle = stringResource(R.string.settings_notification_enabled_desc),
-                        checked = settings.notificationIntelligence,
-                        onCheckedChange = viewModel::setNotificationIntelligence,
-                    )
-                }
-                GroupedRow(index = 1, total = 6) {
-                    SliderRow(
-                        title = stringResource(R.string.settings_min_words),
-                        valueLabel = stringResource(R.string.settings_min_words_value, settings.minWordCount),
-                        value = settings.minWordCount.toFloat(),
-                        range = 2f..20f,
-                        steps = 17,
-                        help = stringResource(R.string.help_min_words),
-                        onValueChange = { viewModel.setMinWordCount(it.toInt()) },
-                    )
-                }
-                GroupedRow(index = 2, total = 6) {
-                    SliderRow(
-                        title = stringResource(R.string.settings_cluster_size),
-                        valueLabel = stringResource(R.string.settings_cluster_size_value, settings.clusterSize),
-                        value = settings.clusterSize.toFloat(),
-                        range = 2f..10f,
-                        steps = 7,
-                        help = stringResource(R.string.help_cluster_size),
-                        onValueChange = { viewModel.setClusterSize(it.toInt()) },
-                    )
-                }
-                GroupedRow(index = 3, total = 6) {
-                    SliderRow(
-                        title = stringResource(R.string.settings_cluster_window),
-                        valueLabel = stringResource(
-                            R.string.settings_cluster_window_value,
-                            settings.clusterWindowMinutes,
-                        ),
-                        value = settings.clusterWindowMinutes.toFloat(),
-                        range = 1f..15f,
-                        steps = 13,
-                        onValueChange = { viewModel.setClusterWindow(it.toInt()) },
-                    )
-                }
-                GroupedRow(index = 4, total = 6) {
-                    SwitchRow(
-                        title = stringResource(R.string.settings_urgent_alerts),
-                        subtitle = stringResource(R.string.settings_urgent_alerts_desc),
-                        checked = settings.urgentAlerts,
-                        onCheckedChange = viewModel::setUrgentAlerts,
-                        help = stringResource(R.string.help_urgent),
-                    )
-                }
-                GroupedRow(index = 5, total = 6) {
-                    SliderRow(
-                        title = stringResource(R.string.settings_retention),
-                        valueLabel = stringResource(R.string.settings_retention_value, settings.retentionDays),
-                        value = settings.retentionDays.toFloat(),
-                        range = 7f..180f,
-                        help = stringResource(R.string.help_retention),
-                        onValueChange = { viewModel.setRetentionDays(it.toInt()) },
-                    )
-                }
+            SettingsPage.Notifications -> SettingsPageScaffold(
+                title = stringResource(R.string.settings_section_notifications),
+                onBack = { page = SettingsPage.Root },
+            ) {
+                NotificationSettings(settings = settings, viewModel = viewModel)
             }
-        }
 
-        // About
-        item { SectionHeader(stringResource(R.string.settings_section_about)) }
-        item {
-            SettingsGroup {
-                GroupedRow(index = 0, total = 2, onClick = viewModel::checkForUpdates) {
-                    ActionRow(
-                        title = stringResource(R.string.settings_check_updates),
-                        subtitle = stringResource(R.string.settings_version, viewModel.versionName),
-                        icon = MarkIcons.Update,
-                        onClick = viewModel::checkForUpdates,
-                    )
-                }
-                GroupedRow(
-                    index = 1,
-                    total = 2,
-                    onClick = { viewModel.openUrl(viewModel.repositoryUrl) },
-                ) {
-                    ActionRow(
-                        title = stringResource(R.string.settings_source),
-                        subtitle = "${BuildConfig.GITHUB_OWNER}/${BuildConfig.GITHUB_REPO}",
-                        icon = MarkIcons.Code,
-                        onClick = { viewModel.openUrl(viewModel.repositoryUrl) },
-                    )
-                }
+            SettingsPage.About -> SettingsPageScaffold(
+                title = stringResource(R.string.settings_section_about),
+                onBack = { page = SettingsPage.Root },
+            ) {
+                AboutSettings(versionName = viewModel.versionName, viewModel = viewModel)
             }
         }
     }
 }
 
 @Composable
-private fun accessLabel(granted: Boolean): String = stringResource(
-    if (granted) R.string.onboarding_granted else R.string.onboarding_grant
+private fun SettingsRoot(
+    versionName: String,
+    updateState: nl.markmaaktmedia.markmaaktai.update.UpdateState,
+    activeModelName: String,
+    onOpen: (SettingsPage) -> Unit,
+    onCheckUpdates: () -> Unit,
+    onDownloadUpdate: () -> Unit,
+    onInstallUpdate: () -> Unit,
+    onOpenReleases: () -> Unit,
+    onDismissUpdate: () -> Unit,
+) {
+    val categories = listOf(
+        Category(SettingsPage.Look, MarkIcons.Palette, R.string.settings_section_look, R.string.settings_look_summary),
+        Category(SettingsPage.Ai, MarkIcons.Model, R.string.settings_section_ai, R.string.settings_ai_summary),
+        Category(SettingsPage.Search, MarkIcons.Web, R.string.settings_section_search, R.string.settings_search_summary),
+        Category(SettingsPage.Access, MarkIcons.Shield, R.string.settings_section_access, R.string.settings_access_summary),
+        Category(SettingsPage.Notifications, MarkIcons.Notifications, R.string.settings_section_notifications, R.string.settings_notifications_summary),
+        Category(SettingsPage.About, MarkIcons.Info, R.string.settings_section_about, R.string.settings_about_summary),
+    )
+
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 130.dp),
+    ) {
+        item {
+            Text(
+                text = stringResource(R.string.settings_title),
+                style = MaterialTheme.typography.headlineMedium,
+                modifier = Modifier.padding(start = 6.dp, top = 12.dp, bottom = 12.dp),
+            )
+        }
+
+        item {
+            UpdateCard(
+                state = updateState,
+                onCheck = onCheckUpdates,
+                onDownload = onDownloadUpdate,
+                onInstall = onInstallUpdate,
+                onOpenPage = onOpenReleases,
+                onDismiss = onDismissUpdate,
+            )
+        }
+
+        item {
+            SettingsGroup(modifier = Modifier.padding(top = 8.dp)) {
+                categories.forEachIndexed { index, category ->
+                    GroupedRow(
+                        index = index,
+                        total = categories.size,
+                        onClick = { onOpen(category.page) },
+                    ) {
+                        CategoryRow(
+                            icon = category.icon,
+                            title = stringResource(category.title),
+                            subtitle = when (category.page) {
+                                SettingsPage.Ai -> activeModelName.ifBlank {
+                                    stringResource(R.string.models_not_installed)
+                                }
+
+                                SettingsPage.About -> stringResource(R.string.settings_version, versionName)
+                                else -> stringResource(category.summary)
+                            },
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+private data class Category(
+    val page: SettingsPage,
+    val icon: Painter,
+    val title: Int,
+    val summary: Int,
 )
+
+@Composable
+private fun CategoryRow(icon: Painter, title: String, subtitle: String) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 18.dp, vertical = 16.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(16.dp),
+    ) {
+        Icon(
+            painter = icon,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.size(22.dp),
+        )
+        Column(modifier = Modifier.weight(1f)) {
+            Text(text = title, style = MaterialTheme.typography.bodyLarge)
+            Text(
+                text = subtitle,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(top = 2.dp),
+            )
+        }
+        Icon(
+            painter = MarkIcons.ChevronRight,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.size(18.dp),
+        )
+    }
+}
+
+/** Title, back arrow and a scrolling body. Every settings page uses it. */
+@Composable
+private fun SettingsPageScaffold(
+    title: String,
+    onBack: () -> Unit,
+    content: @Composable () -> Unit,
+) {
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 130.dp),
+    ) {
+        item {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                MarkIconButton(
+                    icon = MarkIcons.Back,
+                    contentDescription = stringResource(R.string.generic_back),
+                    onClick = onBack,
+                )
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.headlineSmall,
+                )
+            }
+        }
+        item { content() }
+    }
+}

@@ -11,6 +11,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import nl.markmaaktmedia.markmaaktai.data.repository.ModelRepository
+import nl.markmaaktmedia.markmaaktai.util.CrashReporter
 import javax.inject.Inject
 
 @HiltAndroidApp
@@ -22,6 +23,8 @@ class MarkMaaktAiApp : Application(), Configuration.Provider {
 
     @Inject lateinit var modelRepository: ModelRepository
 
+    @Inject lateinit var crashReporter: CrashReporter
+
     override val workManagerConfiguration: Configuration
         get() = Configuration.Builder()
             .setWorkerFactory(workerFactory)
@@ -30,6 +33,7 @@ class MarkMaaktAiApp : Application(), Configuration.Provider {
 
     override fun onCreate() {
         super.onCreate()
+        crashReporter.install()
         notificationPresenter.ensureChannels()
         ScreenshotIndexWorker.schedulePeriodic(this)
         ScreenshotIndexWorker.scheduleModelPass(this)

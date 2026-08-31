@@ -12,6 +12,7 @@ import androidx.compose.animation.scaleOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -42,7 +43,6 @@ import coil.compose.AsyncImage
 import nl.markmaaktmedia.markmaaktai.R
 import nl.markmaaktmedia.markmaaktai.ui.components.MarkIconButton
 import nl.markmaaktmedia.markmaaktai.ui.components.PillSpinner
-import nl.markmaaktmedia.markmaaktai.ui.components.ambientGlowBehind
 import nl.markmaaktmedia.markmaaktai.ui.components.bouncyClickable
 import nl.markmaaktmedia.markmaaktai.ui.theme.MarkIcons
 import nl.markmaaktmedia.markmaaktai.ui.theme.MarkMotion
@@ -57,8 +57,10 @@ import nl.markmaaktmedia.markmaaktai.ui.theme.SquircleShape
  * of text lines up with the icons beside it instead of riding low. The field only
  * starts growing once there is more than one line to show.
  *
- * The glow behind the bar is the app's one piece of ambient motion, and it is tied to
- * real work: it appears while the model is running and is completely still otherwise.
+ * State lives in the outline. While the model is working the border takes the accent
+ * colour and thickens slightly. An earlier version put a coloured glow behind the
+ * whole bar, which bled up over the last message in the transcript and read as a
+ * rendering fault rather than as a status.
  */
 @Composable
 fun ChatComposer(
@@ -78,13 +80,6 @@ fun ChatComposer(
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .ambientGlowBehind(
-                active = state.isGenerating || state.isListening,
-                colors = listOf(
-                    MaterialTheme.colorScheme.primary,
-                    MaterialTheme.colorScheme.tertiary,
-                ),
-            )
             .padding(horizontal = 12.dp, vertical = 8.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
@@ -117,11 +112,25 @@ fun ChatComposer(
             )
         }
 
+        val busy = state.isGenerating || state.isListening
+        val outline by animateColorAsState(
+            targetValue = if (busy) MaterialTheme.colorScheme.primary
+            else MaterialTheme.colorScheme.outlineVariant,
+            animationSpec = MarkMotion.colourSpec(),
+            label = "composerOutline",
+        )
+        val outlineWidth by androidx.compose.animation.core.animateDpAsState(
+            targetValue = if (busy) 2.dp else 1.dp,
+            animationSpec = MarkMotion.springy(),
+            label = "composerOutlineWidth",
+        )
+
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .clip(SquircleShape(30.dp))
+                .clip(ComposerShape)
                 .background(MaterialTheme.colorScheme.surfaceContainerHigh)
+                .border(width = outlineWidth, color = outline, shape = ComposerShape)
                 .padding(start = 6.dp, end = 6.dp, top = 6.dp, bottom = 6.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(2.dp),
@@ -331,6 +340,12 @@ private fun AttachmentPreview(path: String, onRemove: () -> Unit) {
         )
     }
 }
+
+/**
+ * A pill while it holds one line, and only rounds down to a squircle once the text
+ * has grown tall enough that a full pill would bow out at the sides.
+ */
+private val ComposerShape = androidx.compose.foundation.shape.RoundedCornerShape(28.dp)
 
 /** The line above the composer that says what the model is busy with. */
 @Composable

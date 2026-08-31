@@ -89,6 +89,14 @@ fun OnboardingScreen(
     val modelState by modelsViewModel.uiState.collectAsStateWithLifecycle()
     val recommended = ModelCatalog.recommendedText
 
+    var runtimeGranted by remember { mutableStateOf(false) }
+    val runtimePermissions = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestMultiplePermissions(),
+    ) { result ->
+        runtimeGranted = result.values.any { it }
+        settingsViewModel.refreshAccess()
+    }
+
     val notificationPermission = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission(),
     ) { settingsViewModel.refreshAccess() }
@@ -248,6 +256,11 @@ fun OnboardingScreen(
                         )
                     }
 
+                    PermissionStep -> GrantBlock(
+                        granted = runtimeGranted,
+                        onGrant = { runtimePermissions.launch(runtimePermissionList()) },
+                    )
+
                     NotificationStep -> GrantBlock(
                         granted = access.notificationListener,
                         onGrant = {
@@ -297,16 +310,33 @@ fun OnboardingScreen(
     }
 }
 
+/**
+ * The runtime permissions the app can actually use.
+ *
+ * Photos are split on Android 14, where a user can grant access to a chosen few
+ * rather than the whole library, so both are asked for and either one is enough.
+ */
+private fun runtimePermissionList(): Array<String> = buildList {
+    add(Manifest.permission.POST_NOTIFICATIONS)
+    add(Manifest.permission.RECORD_AUDIO)
+    add(Manifest.permission.CAMERA)
+    add(Manifest.permission.READ_MEDIA_IMAGES)
+    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+        add(Manifest.permission.READ_MEDIA_VISUAL_USER_SELECTED)
+    }
+}.toTypedArray()
+
 private data class OnboardingPage(
     val title: String,
     val body: String,
     val icon: Painter,
 )
 
-private const val ModelStep = 2
-private const val NotificationStep = 3
-private const val VoiceStep = 4
-private const val BatteryStep = 5
+private const val PermissionStep = 2
+private const val ModelStep = 3
+private const val NotificationStep = 4
+private const val VoiceStep = 5
+private const val BatteryStep = 6
 
 @Composable
 private fun onboardingPages(): List<OnboardingPage> = listOf(
@@ -318,6 +348,11 @@ private fun onboardingPages(): List<OnboardingPage> = listOf(
     OnboardingPage(
         title = stringResource(R.string.onboarding_privacy_title),
         body = stringResource(R.string.onboarding_privacy_body),
+        icon = MarkIcons.Shield,
+    ),
+    OnboardingPage(
+        title = stringResource(R.string.onboarding_permissions_title),
+        body = stringResource(R.string.onboarding_permissions_body),
         icon = MarkIcons.Shield,
     ),
     OnboardingPage(

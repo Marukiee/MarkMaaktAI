@@ -73,6 +73,8 @@ class MarkNotificationListenerService : NotificationListenerService() {
         if (notification.flags and Notification.FLAG_ONGOING_EVENT != 0) return
         if (notification.flags and Notification.FLAG_GROUP_SUMMARY != 0) return
 
+        if (isNotAMessage(notification)) return
+
         val extras = notification.extras ?: return
         val title = extras.getCharSequence(Notification.EXTRA_TITLE)?.toString().orEmpty().trim()
         val body = listOfNotNull(
@@ -125,6 +127,26 @@ class MarkNotificationListenerService : NotificationListenerService() {
         if (isLongMail || pending >= prefs.clusterSize) {
             NotificationSummaryWorker.schedule(applicationContext, clusterKey, sbn.key)
         }
+    }
+
+    /**
+     * Filters out everything that is posted as a notification but is not a message.
+     *
+     * Media players are the loud case: they keep a permanent notification alive with a
+     * MediaSession attached, and it changes on every track. Progress notifications,
+     * downloads and background services are the same shape of problem. None of them
+     * are worth storing, let alone waking a language model for.
+     */
+    private fun isNotAMessage(notification: Notification): Boolean {
+        val extras = notification.extras
+        val hasMediaSession = extras?.containsKey(Notification.EXTRA_MEDIA_SESSION) == true
+        val isProgress = (extras?.getInt(Notification.EXTRA_PROGRESS_MAX) ?: 0) > 0 ||
+            extras?.getBoolean(Notification.EXTRA_PROGRESS_INDETERMINATE) == true
+
+        return hasMediaSession ||
+            isProgress ||
+            notification.category in IGNORED_CATEGORIES ||
+            notification.flags and Notification.FLAG_FOREGROUND_SERVICE != 0
     }
 
     /**
@@ -192,5 +214,17 @@ class MarkNotificationListenerService : NotificationListenerService() {
         const val MIN_STORED_WORDS = 2
 
         val WHITESPACE = Regex("\\s+")
+
+        /** Categories that are never a message someone sent to the user. */
+        val IGNORED_CATEGORIES = setOf(
+            Notification.CATEGORY_TRANSPORT,
+            Notification.CATEGORY_SERVICE,
+            Notification.CATEGORY_PROGRESS,
+            Notification.CATEGORY_SYSTEM,
+            Notification.CATEGORY_ALARM,
+            Notification.CATEGORY_NAVIGATION,
+            Notification.CATEGORY_CALL,
+            Notification.CATEGORY_STATUS,
+        )
     }
 }

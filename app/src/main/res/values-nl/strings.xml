@@ -242,4 +242,16 @@
     <string name="models_download_done">Gedownload en klaar</string>
     <string name="models_download_failed">Download gestopt, open de app om opnieuw te proberen</string>
     <string name="models_found_existing">Er stond al een model op deze telefoon</string>
+    <string name="crash_title">De app is onverwacht gesloten</string>
+    <string name="settings_last_crash">Laatste crash</string>
+    <string name="settings_last_crash_present">Er staat een rapport klaar, tik om te lezen en te kopieren</string>
+    <string name="settings_last_crash_none">Niets opgeslagen</string>
+    <string name="settings_look_summary">Thema, accentkleur, diepzwart</string>
+    <string name="settings_ai_summary">Model, creativiteit, hardwareversnelling</string>
+    <string name="settings_search_summary">Zoekinstantie en resultaten</string>
+    <string name="settings_access_summary">Meldingen, batterij, assistent</string>
+    <string name="settings_notifications_summary">Wanneer een reeks een samenvatting wordt</string>
+    <string name="settings_about_summary">Versie, broncode, crashrapport</string>
+    <string name="onboarding_permissions_title">Een paar rechten</string>
+    <string name="onboarding_permissions_body">De microfoon om te praten, de camera en je foto\'s om iets over een afbeelding te vragen, en meldingen zodat samenvattingen je bereiken. Weiger er gerust een, de rest blijft werken.</string>
 </resources>
