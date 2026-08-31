@@ -11,9 +11,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.animation.scaleIn
 import androidx.compose.animation.shrinkVertically
-import androidx.compose.animation.slideInVertically
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.Orientation
@@ -52,6 +50,7 @@ import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -74,6 +73,8 @@ data class AssistUiState(
     val answer: String = "",
     val isAnswering: Boolean = false,
     val isListening: Boolean = false,
+    /** How loud the microphone is right now, from nothing to full. */
+    val level: Float = 0f,
     val hasScreenContext: Boolean = false,
     val error: String? = null,
     /**
@@ -127,16 +128,24 @@ fun AssistOverlay(
 
     val busy = state.isAnswering || state.isListening
 
-    val scrimAlpha by animateFloatAsState(
-        targetValue = if (visible) 0.38f else 0f,
-        animationSpec = tween(durationMillis = 340, easing = LinearEasing),
-        label = "scrim",
+    /*
+     * The arrival.
+     *
+     * One value drives the whole thing: the sheet comes up from the bottom edge as a
+     * narrow rounded shape, then widens into the full panel as it settles. Sliding a
+     * finished panel up the screen is the ordinary way to do this and reads as a
+     * dialog; growing into place reads as something the phone did, which is the point
+     * of an assistant that answers to the power button.
+     */
+    val entry by animateFloatAsState(
+        targetValue = if (visible) 1f else 0f,
+        animationSpec = if (visible) MarkMotion.spatial() else tween(220, easing = LinearEasing),
+        label = "assistEntry",
     )
 
     Box(
         modifier = modifier
             .fillMaxSize()
-            .background(Color.Black.copy(alpha = scrimAlpha))
             .bouncyClickable(role = null, pressedScale = 1f, onClick = onClose),
     ) {
         EdgeGlow(
@@ -145,47 +154,52 @@ fun AssistOverlay(
             modifier = Modifier.fillMaxSize(),
         )
 
-        Column(
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .imePadding()
-                .padding(horizontal = 8.dp),
-            horizontalAlignment = Alignment.Start,
-        ) {
-            // The context badge is its own pill above the sheet, so it reads as a
-            // statement about the screen rather than as a subtitle of the app name.
-            AnimatedVisibility(
-                visible = visible && state.hasScreenContext,
-                enter = scaleIn(initialScale = 0.85f, animationSpec = MarkMotion.springy()) + fadeIn(),
-                exit = fadeOut(),
+        if (entry > 0.001f) {
+            Column(
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .imePadding()
+                    .navigationBarsPadding()
+                    .padding(start = 10.dp, end = 10.dp, bottom = 10.dp)
+                    .graphicsLayer {
+                        // Rises from the bottom edge, and widens on the way. The width
+                        // catches up last, which is what gives the drop its shape.
+                        val eased = entry.coerceIn(0f, 1f)
+                        alpha = (eased * 1.8f).coerceAtMost(1f)
+                        translationY = (1f - eased) * 90.dp.toPx()
+                        scaleX = 0.42f + 0.58f * (eased * eased)
+                        scaleY = 0.72f + 0.28f * eased
+                        transformOrigin = androidx.compose.ui.graphics.TransformOrigin(0.5f, 1f)
+                    },
+                horizontalAlignment = Alignment.Start,
             ) {
-                Row(
-                    modifier = Modifier
-                        .padding(start = 8.dp, bottom = 10.dp)
-                        .clip(PillShape)
-                        .background(MaterialTheme.colorScheme.surfaceContainerHigh)
-                        .padding(horizontal = 14.dp, vertical = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    Icon(
-                        painter = MarkIcons.Sparkle,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(15.dp),
-                    )
-                    Text(
-                        text = stringResource(R.string.assist_title),
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.onSurface,
-                    )
+                // Badge and sheet arrive as one piece. Giving the badge its own entry
+                // made it appear out of the middle of the screen a beat after the
+                // sheet, which read as two unrelated things showing up.
+                if (state.hasScreenContext) {
+                    Row(
+                        modifier = Modifier
+                            .padding(start = 8.dp, bottom = 10.dp)
+                            .clip(PillShape)
+                            .background(MaterialTheme.colorScheme.surfaceContainerHigh)
+                            .padding(horizontal = 14.dp, vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        Icon(
+                            painter = MarkIcons.Sparkle,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(15.dp),
+                        )
+                        Text(
+                            text = stringResource(R.string.assist_title),
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.onSurface,
+                        )
+                    }
                 }
-            }
 
-            AnimatedVisibility(
-                visible = visible,
-                enter = slideInVertically(animationSpec = MarkMotion.spatial()) { it } + fadeIn(),
-            ) {
                 AssistSheet(
                     state = state,
                     onQueryChange = onQueryChange,
@@ -212,7 +226,7 @@ private fun AssistSheet(
 
     Column(
         modifier = Modifier
-            .clip(SheetCorners)
+            .clip(SquircleShape(30.dp))
             .background(MaterialTheme.colorScheme.surfaceContainerLow)
             .draggable(
                 orientation = Orientation.Vertical,
@@ -224,8 +238,7 @@ private fun AssistSheet(
                     dragged = 0f
                 },
             )
-            .navigationBarsPadding()
-            .padding(start = 20.dp, end = 20.dp, top = 14.dp, bottom = 14.dp),
+            .padding(start = 18.dp, end = 18.dp, top = 12.dp, bottom = 14.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Box(
@@ -315,7 +328,7 @@ private fun AssistInput(
         Box(modifier = Modifier.weight(1f)) {
             if (state.query.isEmpty()) {
                 if (state.isListening) {
-                    ListeningWave()
+                    ListeningWave(level = state.level)
                 } else {
                     Text(
                         text = stringResource(R.string.assist_hint),
@@ -370,7 +383,7 @@ private fun AssistInput(
  * as something responding to sound.
  */
 @Composable
-private fun ListeningWave(modifier: Modifier = Modifier) {
+private fun ListeningWave(level: Float, modifier: Modifier = Modifier) {
     val transition = rememberInfiniteTransition(label = "listening")
     val periods = listOf(720, 910, 640, 1050, 830, 960, 700)
 
@@ -387,6 +400,13 @@ private fun ListeningWave(modifier: Modifier = Modifier) {
     }
 
     val colour = MaterialTheme.colorScheme.primary
+    // Follows the microphone rather than running on its own. Smoothed, because a raw
+    // reading per buffer flickers, and floored a little so the bars never look frozen.
+    val loudness by animateFloatAsState(
+        targetValue = 0.12f + level.coerceIn(0f, 1f) * 0.88f,
+        animationSpec = tween(durationMillis = 90, easing = LinearEasing),
+        label = "loudness",
+    )
 
     Canvas(
         modifier = modifier
@@ -395,11 +415,11 @@ private fun ListeningWave(modifier: Modifier = Modifier) {
     ) {
         val barWidth = size.width / (periods.size * 2f)
         phases.forEachIndexed { index, phase ->
-            val level = (sin(phase.value * 2f * Math.PI.toFloat()) + 1f) / 2f
-            val barHeight = size.height * (0.25f + level * 0.75f)
+            val shape = (sin(phase.value * 2f * Math.PI.toFloat()) + 1f) / 2f
+            val barHeight = size.height * (0.14f + shape * 0.86f * loudness)
             val x = index * barWidth * 2f
             drawRoundRect(
-                color = colour.copy(alpha = 0.55f + level * 0.45f),
+                color = colour.copy(alpha = 0.45f + shape * 0.55f * loudness),
                 topLeft = Offset(x, (size.height - barHeight) / 2f),
                 size = Size(barWidth, barHeight),
                 cornerRadius = CornerRadius(barWidth / 2f),
@@ -407,18 +427,6 @@ private fun ListeningWave(modifier: Modifier = Modifier) {
         }
     }
 }
-
-/**
- * Square along the bottom, rounded on top.
- *
- * The sheet runs to the very edge of the screen so the gesture bar sits on it rather
- * than in a strip of the app behind it, and a sheet that is rounded where it meets
- * the edge looks like it failed to reach.
- */
-private val SheetCorners = androidx.compose.foundation.shape.RoundedCornerShape(
-    topStart = 28.dp,
-    topEnd = 28.dp,
-)
 
 /** Drag distance, in pixels, that counts as asking for the full app. */
 private const val OpenAppThreshold = -120f

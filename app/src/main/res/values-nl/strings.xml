@@ -8,7 +8,7 @@
     <string name="nav_settings">Instellingen</string>
 
     <string name="chat_title">Vraag maar raak</string>
-    <string name="chat_input_hint">Bericht aan MarkMaaktAI</string>
+    <string name="chat_input_hint">Vraag maar raak</string>
     <string name="chat_send">Versturen</string>
     <string name="chat_stop">Stoppen</string>
     <string name="chat_attach_photo">Foto toevoegen</string>

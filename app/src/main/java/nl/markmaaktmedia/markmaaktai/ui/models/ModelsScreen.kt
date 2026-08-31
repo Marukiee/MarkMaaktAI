@@ -196,7 +196,7 @@ private fun androidx.compose.foundation.lazy.LazyListScope.modelSection(
                 ModelRow(
                     spec = spec,
                     installed = viewModel.isInstalled(spec),
-                    active = activePath.endsWith(spec.fileName),
+                    active = isActivePath(activePath, spec),
                     progress = downloads[spec.id],
                     onDownload = { viewModel.download(spec) },
                     onCancel = { viewModel.cancelDownload(spec) },
@@ -343,4 +343,18 @@ internal fun formatSize(bytes: Long): String = when {
     bytes <= 0 -> "0 MB"
     bytes >= 1_000_000_000L -> String.format(Locale.getDefault(), "%.1f GB", bytes / 1_000_000_000.0)
     else -> "${bytes / 1_000_000} MB"
+}
+
+/**
+ * Whether the selected path for a role points at this catalogue entry.
+ *
+ * A speech model is selected by its unpacked folder, and that folder has no file
+ * extension, so comparing against the download's file name never matched and the
+ * Dutch speech model kept offering a download button after it had been installed.
+ */
+private fun isActivePath(activePath: String, spec: ModelSpec): Boolean {
+    if (activePath.isBlank()) return false
+    if (activePath.endsWith(spec.fileName)) return true
+    val stem = java.io.File(spec.fileName).nameWithoutExtension
+    return stem.isNotBlank() && activePath.trimEnd('/').endsWith(stem)
 }

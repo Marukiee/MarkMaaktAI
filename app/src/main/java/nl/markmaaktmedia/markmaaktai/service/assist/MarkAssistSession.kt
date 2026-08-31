@@ -92,8 +92,9 @@ class MarkAssistSession(context: Context) :
     }
 
     override fun onCreateContentView(): View {
-        val root = FrameLayout(context)
-        val composeView = ComposeView(context).apply {
+        val uiContext = localisedContext(context)
+        val root = FrameLayout(uiContext)
+        val composeView = ComposeView(uiContext).apply {
             setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnDetachedFromWindow)
             setContent {
                 val settings = remembered()
@@ -133,6 +134,27 @@ class MarkAssistSession(context: Context) :
         return root
     }
 
+    /**
+     * The context the sheet is built from, with the app's own language applied.
+     *
+     * A session is not an Activity, so it is handed the service context, and that one
+     * carries the system language rather than the per app language chosen in Android's
+     * settings. The sheet came up in English on a phone whose app was set to Dutch.
+     * Reading the override back and rebuilding the configuration is what puts the
+     * assistant in the same language as everything else in the app.
+     */
+    private fun localisedContext(base: Context): Context {
+        if (android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.TIRAMISU) return base
+        return runCatching {
+            val manager = base.getSystemService(android.app.LocaleManager::class.java) ?: return base
+            val locales = manager.applicationLocales
+            if (locales.isEmpty) return base
+            val config = android.content.res.Configuration(base.resources.configuration)
+            config.setLocales(android.os.LocaleList.forLanguageTags(locales.toLanguageTags()))
+            base.createConfigurationContext(config)
+        }.getOrDefault(base)
+    }
+
     override fun onShow(args: Bundle?, showFlags: Int) {
         super.onShow(args, showFlags)
         lifecycleRegistry.currentState = Lifecycle.State.RESUMED
@@ -151,6 +173,31 @@ class MarkAssistSession(context: Context) :
                 )
                 w.setBackgroundDrawable(android.graphics.drawable.ColorDrawable(0))
                 androidx.core.view.WindowCompat.setDecorFitsSystemWindows(w, false)
+
+                /*
+                 * Resize, not pan. The default for this window pushes the whole thing
+                 * up when the keyboard opens, which threw the sheet to the top of the
+                 * screen instead of letting it rest on the keyboard.
+                 */
+                w.setSoftInputMode(
+                    android.view.WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE or
+                        android.view.WindowManager.LayoutParams.SOFT_INPUT_STATE_UNCHANGED
+                )
+
+                /*
+                 * The navigation bar stays, the grey strip behind it does not.
+                 *
+                 * Android draws a translucent scrim behind the bar when a window is
+                 * see-through, to keep the buttons legible. Over the glow that reads as
+                 * a dirty band across the bottom of the screen, and the sheet floats
+                 * clear of the bar anyway, so it is turned off.
+                 */
+                w.navigationBarColor = android.graphics.Color.TRANSPARENT
+                w.statusBarColor = android.graphics.Color.TRANSPARENT
+                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
+                    w.isNavigationBarContrastEnforced = false
+                    w.isStatusBarContrastEnforced = false
+                }
             }
         }
 
@@ -177,9 +224,25 @@ class MarkAssistSession(context: Context) :
         toggleDictation()
     }
 
+    /**
+     * Back closes the same way the button does.
+     *
+     * The system's own handling takes the window away on the spot, so the sheet never
+     * played its exit, and the session was left half torn down: the next summoning came
+     * up with no arrival at all. Routing back through the same dismiss gives one exit
+     * path with one set of state to reset.
+     */
+    override fun onBackPressed() {
+        dismiss()
+    }
+
     override fun onHide() {
         answerJob?.cancel()
         dictationJob?.cancel()
+        // Cleared here as well as on show. A hide that did not come from dismiss, such
+        // as the system taking the window for something else, would otherwise leave the
+        // closing flag set and the next sheet would never become visible.
+        state.update { it.copy(closing = false, isListening = false, isAnswering = false) }
         lifecycleRegistry.currentState = Lifecycle.State.CREATED
         super.onHide()
     }
@@ -220,10 +283,23 @@ class MarkAssistSession(context: Context) :
         val question = state.value.query.trim()
         if (question.isEmpty() || state.value.isAnswering) return
 
+        // The microphone closes as soon as there is a question. Leaving it open meant
+        // the assistant kept recording the room while it was answering.
+        dictationJob?.cancel()
+        dictationJob = null
+
         answerJob?.cancel()
         answerJob = scope.launch {
             state.update {
-                it.copy(isAnswering = true, answer = "", askedQuestion = question, query = "", error = null)
+                it.copy(
+                    isAnswering = true,
+                    answer = "",
+                    askedQuestion = question,
+                    query = "",
+                    error = null,
+                    isListening = false,
+                    level = 0f,
+                )
             }
             val builder = StringBuilder()
             entryPoint.orchestrator().chat(
@@ -260,6 +336,7 @@ class MarkAssistSession(context: Context) :
             state.update { it.copy(isListening = true) }
             entryPoint.speechInput().listen().collect { event ->
                 when (event) {
+                    is SpeechEvent.Level -> state.update { it.copy(level = event.rms) }
                     is SpeechEvent.Partial -> state.update { it.copy(query = event.text) }
                     is SpeechEvent.Final -> {
                         state.update { it.copy(query = event.text, isListening = false) }
@@ -272,7 +349,7 @@ class MarkAssistSession(context: Context) :
                     else -> Unit
                 }
             }
-            state.update { it.copy(isListening = false) }
+            state.update { it.copy(isListening = false, level = 0f) }
         }
     }
 
@@ -292,11 +369,50 @@ class MarkAssistSession(context: Context) :
         }
     }
 
+    /**
+     * Hands the exchange over to the app and opens it on that thread.
+     *
+     * Dragging the sheet up means "carry on with this", so arriving at an empty chat
+     * and having to ask again is the wrong answer. The question and the answer are
+     * written to a real conversation first, and the app is told which one to open.
+     * With nothing asked yet there is nothing to carry, so it simply opens.
+     */
     private fun openFullApp() {
-        val intent = Intent(context, MainActivity::class.java)
-            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
-        runCatching { context.startActivity(intent) }
-        dismiss()
+        val question = state.value.askedQuestion
+        val answer = state.value.answer
+        state.update { it.copy(closing = true) }
+
+        scope.launch {
+            val conversationId = if (question.isNotBlank()) {
+                runCatching { saveExchange(question, answer) }.getOrNull()
+            } else {
+                null
+            }
+
+            val intent = Intent(context, MainActivity::class.java)
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+            if (conversationId != null) {
+                intent.putExtra(MainActivity.EXTRA_CONVERSATION_ID, conversationId)
+            }
+            runCatching { context.startActivity(intent) }
+            hide()
+        }
+    }
+
+    private suspend fun saveExchange(question: String, answer: String): Long {
+        val chats = entryPoint.chats()
+        val conversationId = chats.createConversation(question.take(60))
+        val userId = chats.addUserMessage(
+            conversationId = conversationId,
+            text = question,
+            imagePath = null,
+            parentId = null,
+        )
+        if (answer.isNotBlank()) {
+            val assistantId = chats.startAssistantMessage(conversationId, userId)
+            chats.updateAssistantMessage(assistantId, answer)
+        }
+        return conversationId
     }
 
     /**

@@ -7,6 +7,7 @@ import nl.markmaaktmedia.markmaaktai.ai.AiOrchestrator
 import nl.markmaaktmedia.markmaaktai.ai.stt.SpeechInputManager
 import nl.markmaaktmedia.markmaaktai.ai.vision.ImageTextExtractor
 import nl.markmaaktmedia.markmaaktai.data.prefs.SettingsRepository
+import nl.markmaaktmedia.markmaaktai.data.repository.ChatRepository
 import nl.markmaaktmedia.markmaaktai.data.repository.NotificationRepository
 import nl.markmaaktmedia.markmaaktai.data.repository.ScreenshotRepository
 
@@ -24,4 +25,5 @@ interface AssistEntryPoint {
     fun speechInput(): SpeechInputManager
     fun notifications(): NotificationRepository
     fun screenshots(): ScreenshotRepository
+    fun chats(): ChatRepository
 }

@@ -69,10 +69,15 @@ fun EdgeGlow(
             // Quarter turn of phase per edge, so the light travels around the frame
             // instead of every side breathing together.
             val phase = index * 0.25f
-            val depth = 0.13f + 0.07f * wave(reach + phase)
-            val alpha = (0.30f + 0.22f * wave(brightness + phase * 1.7f)) * presence
-            val colour = colors.cycleAt(hue + phase)
-            drawEdge(edge, colour, depth * edge.reachScale(), alpha)
+            val depth = 0.16f + 0.09f * wave(reach + phase)
+            val alpha = (0.42f + 0.26f * wave(brightness + phase * 1.7f)) * presence
+            drawEdge(
+                edge = edge,
+                colours = colors,
+                position = hue + phase,
+                depth = depth * edge.reachScale(),
+                alpha = alpha,
+            )
         }
     }
 }
@@ -83,6 +88,8 @@ fun defaultEdgeColors(): List<Color> = listOf(
     MaterialTheme.colorScheme.primary,
     MaterialTheme.colorScheme.tertiary,
     MaterialTheme.colorScheme.secondary,
+    MaterialTheme.colorScheme.primaryContainer,
+    MaterialTheme.colorScheme.tertiaryContainer,
     MaterialTheme.colorScheme.primary,
 )
 
@@ -93,62 +100,82 @@ private fun Edge.reachScale(): Float = when (this) {
     else -> 1f
 }
 
-private fun DrawScope.drawEdge(edge: Edge, colour: Color, depth: Float, alpha: Float) {
-    val tinted = colour.copy(alpha = alpha)
-    val transparent = colour.copy(alpha = 0f)
+/**
+ * One side of the frame, lit.
+ *
+ * The band fades inward, and it also changes colour along its length, which is the
+ * part that makes this read as light through glass rather than as a coloured border.
+ * Two gradients at right angles cannot be expressed as one brush, so the edge is drawn
+ * as a run of narrow slices, each fading inward on its own colour. At this alpha the
+ * seams between neighbouring slices are not visible, and forty small rectangles cost
+ * nothing next to a real blur.
+ */
+private fun DrawScope.drawEdge(
+    edge: Edge,
+    colours: List<Color>,
+    position: Float,
+    depth: Float,
+    alpha: Float,
+) {
+    val vertical = edge == Edge.Top || edge == Edge.Bottom
+    val along = if (vertical) size.width else size.height
+    val band = (if (vertical) size.height else size.width) * depth
+    if (along <= 0f || band <= 0f) return
 
-    when (edge) {
-        Edge.Top -> {
-            val height = size.height * depth
-            drawRect(
-                brush = Brush.verticalGradient(
-                    colors = listOf(tinted, transparent),
-                    startY = 0f,
-                    endY = height,
-                ),
-                size = Size(size.width, height),
+    val slice = along / Slices
+    for (index in 0 until Slices) {
+        val travel = index / Slices.toFloat()
+        val colour = colours.cycleAt(position + travel * SpreadAcrossEdge)
+        // A touch brighter in the middle of each side, so the corners recede and the
+        // light looks like it has a source rather than an outline.
+        val shaped = alpha * (0.55f + 0.45f * wave(travel * 0.5f - 0.25f))
+        val tinted = colour.copy(alpha = shaped)
+        val clear = colour.copy(alpha = 0f)
+        val start = index * slice
+        // Overdrawn by a pixel, or a seam of background shows between slices.
+        val width = slice + 1f
+
+        when (edge) {
+            Edge.Top -> drawRect(
+                brush = Brush.verticalGradient(listOf(tinted, clear), startY = 0f, endY = band),
+                topLeft = Offset(start, 0f),
+                size = Size(width, band),
             )
-        }
 
-        Edge.Bottom -> {
-            val height = size.height * depth
-            drawRect(
+            Edge.Bottom -> drawRect(
                 brush = Brush.verticalGradient(
-                    colors = listOf(transparent, tinted),
-                    startY = size.height - height,
+                    listOf(clear, tinted),
+                    startY = size.height - band,
                     endY = size.height,
                 ),
-                topLeft = Offset(0f, size.height - height),
-                size = Size(size.width, height),
+                topLeft = Offset(start, size.height - band),
+                size = Size(width, band),
             )
-        }
 
-        Edge.Start -> {
-            val width = size.width * depth
-            drawRect(
-                brush = Brush.horizontalGradient(
-                    colors = listOf(tinted, transparent),
-                    startX = 0f,
-                    endX = width,
-                ),
-                size = Size(width, size.height),
+            Edge.Start -> drawRect(
+                brush = Brush.horizontalGradient(listOf(tinted, clear), startX = 0f, endX = band),
+                topLeft = Offset(0f, start),
+                size = Size(band, width),
             )
-        }
 
-        Edge.End -> {
-            val width = size.width * depth
-            drawRect(
+            Edge.End -> drawRect(
                 brush = Brush.horizontalGradient(
-                    colors = listOf(transparent, tinted),
-                    startX = size.width - width,
+                    listOf(clear, tinted),
+                    startX = size.width - band,
                     endX = size.width,
                 ),
-                topLeft = Offset(size.width - width, 0f),
-                size = Size(width, size.height),
+                topLeft = Offset(size.width - band, start),
+                size = Size(band, width),
             )
         }
     }
 }
+
+/** Slices per side. Enough that the colour change along an edge looks continuous. */
+private const val Slices = 12
+
+/** How much of the palette one side travels through, end to end. */
+private const val SpreadAcrossEdge = 0.5f
 
 /** A 0 to 1 ramp that restarts, used as the phase for everything that drifts. */
 @Composable

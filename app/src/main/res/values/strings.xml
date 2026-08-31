@@ -11,7 +11,7 @@
 
     <!-- Chat -->
     <string name="chat_title">Ask anything</string>
-    <string name="chat_input_hint">Message MarkMaaktAI</string>
+    <string name="chat_input_hint">Ask anything</string>
     <string name="chat_send">Send</string>
     <string name="chat_stop">Stop</string>
     <string name="chat_attach_photo">Attach a photo</string>

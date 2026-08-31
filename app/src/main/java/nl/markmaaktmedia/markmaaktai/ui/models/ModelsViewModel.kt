@@ -48,6 +48,12 @@ class ModelsViewModel @Inject constructor(
 
     init {
         refresh()
+        // A download that finishes leaves a new file, or a new unpacked folder, that
+        // nothing else would notice. Watching the transfer map means the row turns
+        // into a tick the moment the transfer is gone rather than on the next visit.
+        viewModelScope.launch {
+            repository.downloads.collect { refresh() }
+        }
         viewModelScope.launch {
             settings.settings.collect { prefs ->
                 _uiState.update {

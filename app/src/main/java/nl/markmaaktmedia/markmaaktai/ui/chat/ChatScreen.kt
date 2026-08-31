@@ -55,6 +55,13 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.animation.core.Animatable
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.runtime.rememberCoroutineScope
 import kotlinx.coroutines.launch
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -468,10 +475,49 @@ private fun ConversationPanel(
             exit = slideOutHorizontally(animationSpec = MarkMotion.spatial()) { -it } + fadeOut(),
             modifier = Modifier.align(Alignment.CenterStart),
         ) {
+            /*
+             * The panel came in from the left, so pushing it back that way is what a
+             * hand expects to close it. It follows the finger and springs back if the
+             * push was not enough. Rows in the list consume their own horizontal drags
+             * for swipe to delete, so this only picks up drags on the panel itself.
+             */
+            val panelScope = rememberCoroutineScope()
+            val panelOffset = remember { Animatable(0f) }
+            var panelWidth by remember { mutableIntStateOf(1) }
+
             Column(
                 modifier = Modifier
                     .fillMaxHeight()
                     .fillMaxWidth(0.84f)
+                    .onSizeChanged { panelWidth = it.width.coerceAtLeast(1) }
+                    .offset { IntOffset(panelOffset.value.toInt(), 0) }
+                    .pointerInput(Unit) {
+                        detectHorizontalDragGestures(
+                            onHorizontalDrag = { change, delta ->
+                                change.consume()
+                                panelScope.launch {
+                                    panelOffset.snapTo(
+                                        (panelOffset.value + delta).coerceAtMost(0f)
+                                    )
+                                }
+                            },
+                            onDragEnd = {
+                                if (-panelOffset.value > panelWidth * 0.25f) {
+                                    onDismiss()
+                                    panelScope.launch { panelOffset.snapTo(0f) }
+                                } else {
+                                    panelScope.launch {
+                                        panelOffset.animateTo(0f, MarkMotion.spatial())
+                                    }
+                                }
+                            },
+                            onDragCancel = {
+                                panelScope.launch {
+                                    panelOffset.animateTo(0f, MarkMotion.spatial())
+                                }
+                            },
+                        )
+                    }
                     .clip(PanelShape)
                     .background(MaterialTheme.colorScheme.surfaceContainerLow)
                     // Stops a tap on the panel from reaching the scrim behind it,
@@ -516,6 +562,7 @@ private fun ConversationPanel(
                     items(conversations, key = { it.id }) { conversation ->
                         SwipeToDelete(
                             item = conversation,
+                            key = conversation.id,
                             onDelete = { onDelete(it.id) },
                             shape = CardSquircle,
                         ) {

@@ -150,6 +150,16 @@ class ChatViewModel @Inject constructor(
                 }
             }
         }
+        // The assistant sheet saves its exchange and hands over the thread, so dragging
+        // it up carries on with that conversation instead of starting an empty one.
+        viewModelScope.launch {
+            handoff.pendingConversation.collect { id ->
+                if (id != null && id > 0) {
+                    handoff.clearConversation()
+                    openConversation(id)
+                }
+            }
+        }
     }
 
     fun onInputChange(value: String) {

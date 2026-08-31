@@ -101,9 +101,8 @@ class ModelRepository @Inject constructor(
     suspend fun installed(): List<InstalledModel> = withContext(Dispatchers.IO) {
         val prefs = settings.current()
         val active = setOf(prefs.textModelPath, prefs.visionModelPath, prefs.speechModelPath)
-        modelsDir().listFiles().orEmpty()
+        val files = modelsDir().listFiles().orEmpty()
             .filter { it.isFile }
-            .sortedBy { it.name.lowercase() }
             .map { file ->
                 InstalledModel(
                     fileName = file.name,
@@ -113,9 +112,50 @@ class ModelRepository @Inject constructor(
                     isActive = file.absolutePath in active,
                 )
             }
+
+        // A speech model is a folder, not a file, and it lives outside the models
+        // directory because the archive is thrown away once it is unpacked. Leaving it
+        // out of this list meant a model that was sitting on disk and working was
+        // reported as missing everywhere the list is read.
+        val speech = speechDir().listFiles().orEmpty()
+            .filter { it.isDirectory }
+            .map { dir ->
+                InstalledModel(
+                    fileName = dir.name,
+                    path = dir.absolutePath,
+                    sizeBytes = dir.walkBottomUp().filter { it.isFile }.sumOf { it.length() },
+                    role = ModelRole.SPEECH,
+                    isActive = dir.absolutePath in active ||
+                        prefs.speechModelPath.startsWith(dir.absolutePath),
+                )
+            }
+
+        (files + speech).sortedBy { it.fileName.lowercase() }
     }
 
-    fun isInstalled(spec: ModelSpec): Boolean = File(modelsDir(), spec.fileName).exists()
+    /**
+     * Whether this catalogue entry is already on the phone.
+     *
+     * A speech model does not stay as the file it arrived as: the archive is unpacked
+     * into its own folder and then deleted, so looking only for the download's file
+     * name left the Dutch speech model showing a download button forever, however many
+     * times it had been fetched.
+     */
+    fun isInstalled(spec: ModelSpec): Boolean {
+        if (File(modelsDir(), spec.fileName).exists()) return true
+        if (spec.role != ModelRole.SPEECH) return false
+        return unpackedSpeechDir(spec) != null
+    }
+
+    /** The unpacked folder for a speech entry, or null when it is not there. */
+    fun unpackedSpeechDir(spec: ModelSpec): File? {
+        val base = File(speechDir(), File(spec.fileName).nameWithoutExtension)
+        val candidates = listOfNotNull(
+            base.takeIf { it.isDirectory },
+            base.listFiles()?.singleOrNull()?.takeIf { it.isDirectory },
+        )
+        return candidates.firstOrNull { dir -> dir.listFiles().orEmpty().isNotEmpty() }
+    }
 
     /**
      * Picks up a model that is on disk but not selected.

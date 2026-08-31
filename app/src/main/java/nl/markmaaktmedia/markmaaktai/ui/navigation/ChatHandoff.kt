@@ -29,4 +29,22 @@ class ChatHandoff @Inject constructor() {
     fun clear() {
         _pending.value = null
     }
+
+    /**
+     * A thread the app should open on, rather than a question to ask.
+     *
+     * The assistant sheet writes its exchange to a real conversation before handing
+     * over, so dragging it up carries on where it left off instead of landing in an
+     * empty chat.
+     */
+    private val _pendingConversation = MutableStateFlow<Long?>(null)
+    val pendingConversation: StateFlow<Long?> = _pendingConversation.asStateFlow()
+
+    fun offerConversation(id: Long) {
+        _pendingConversation.value = id
+    }
+
+    fun clearConversation() {
+        _pendingConversation.value = null
+    }
 }

@@ -88,7 +88,7 @@ fun DigestScreen(
                     verticalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
                     items(summaries, key = { it.id }) { summary ->
-                        SwipeToDelete(item = summary, onDelete = viewModel::delete) {
+                        SwipeToDelete(item = summary, key = summary.id, onDelete = viewModel::delete) {
                             SummaryCard(
                                 summary = summary,
                                 expanded = state.expandedId == summary.id,

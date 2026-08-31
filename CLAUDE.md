@@ -61,6 +61,49 @@ Dit is waar de app op beoordeeld wordt. Nooit op afknijpen.
   ladder van donkergrijs zodat diepte zichtbaar blijft.
 - Referentie voor kwaliteit en toon: MarkMySteps (`github.com/Marukiee/MarkMySteps`).
 
+### Assistent
+
+- Het paneel **zweeft**: marges links, rechts en onder, ronde hoeken rondom. Nooit
+  vastgeplakt aan de onderrand.
+- Opkomen is een **druppel**: smal vanaf de onderrand omhoog, dan uitzetten in de
+  breedte. Niet een af paneel dat omhoog schuift.
+- Geen donkere waas over het scherm eronder. De navigatiebalk blijft staan, maar de
+  grijze contrastbalk erachter gaat uit (`isNavigationBarContrastEnforced = false`).
+- De back-gesture moet door dezelfde `dismiss()` lopen als het kruisje. Anders haalt
+  het systeem het venster meteen weg, speelt de exit niet, en is de volgende keer
+  oproepen kapot.
+- De sessie draait op de **service-context**, en die kent de per-app taal niet. Taal
+  expliciet toepassen via `LocaleManager.applicationLocales`, anders staat de assistent
+  in het Engels terwijl de app Nederlands is.
+- Het venster moet `SOFT_INPUT_ADJUST_RESIZE` krijgen, anders schuift het hele
+  overlay omhoog zodra het toetsenbord opengaat.
+- Na een vraag gaat de microfoon dicht. Doorluisteren tijdens het antwoorden is fout.
+- Omhoog slepen aan het handvat schrijft de vraag en het antwoord weg als echt gesprek
+  en opent dat gesprek in de app.
+- De randgloed is **kleurrijk**, meerdere tinten per rand. Eén vlakke kleur per rand is
+  te braaf, kijk naar Gemini.
+
+### Swipen om te verwijderen
+
+- Twee **losse** panelen: de rij schuift weg op zijn eigen ronde vorm, het rode paneel
+  is een eigen ronde vorm die tegen de rechterrand meegroeit. Nooit rood dat onder de
+  rij doorloopt.
+- Spanning eerst (60dp beweging geeft 20dp), dan losschieten met een spring, dan
+  scherp stellen voorbij 35 procent.
+- Haptiek via `GESTURE_THRESHOLD_ACTIVATE` en `GESTURE_THRESHOLD_DEACTIVATE`, in beide
+  richtingen, en `CONFIRM` bij het wegvliegen.
+- De gebaarstand hoort op een **stabiele sleutel** (`conversation.id`), niet op het
+  item zelf. Op het item betekent dat elke update de state vervangt en de rij
+  terugklapt in plaats van terugveert.
+
+### Valkuilen in de layout
+
+- `BoxWithConstraints.maxWidth` is de ruimte **na** de eigen modifiers. De padding er
+  nog eens vanaf trekken maakt elk vak te smal en de fout stapelt op aan de rechterkant.
+- Een spraakmodel is een **map**, geen bestand. Het zip-archief wordt uitgepakt en
+  weggegooid, dus zoeken op de bestandsnaam vindt niks en de knop blijft "downloaden"
+  zeggen.
+
 ## Gebruiksgemak
 
 - **APK installeren en klaar.** Geen HuggingFace-account, geen tokens, geen licentie

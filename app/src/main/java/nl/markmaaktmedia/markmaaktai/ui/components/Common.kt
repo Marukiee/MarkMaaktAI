@@ -24,6 +24,8 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.requiredSize
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -36,10 +38,8 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
-import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -323,28 +323,33 @@ fun EmptyState(
 }
 
 /**
- * Swipe an item away, with the physics MarkMySteps uses on its route planner.
+ * Swipe an item away, with the physics and the look MarkMySteps uses on its route
+ * planner.
  *
- * Material's SwipeToDismissBox tracks the finger one to one from the first pixel,
- * which makes every accidental brush look like the start of a delete. This does what
- * the reference does instead, in three stages:
+ * Two separate panels rather than one card over a coloured strip. The row slides left
+ * on its own rounded shape and the delete panel is its own rounded shape anchored to
+ * the right edge, widening as the row leaves. That is what stops the red from running
+ * underneath the card and looking like a background that was there all along.
  *
- * 1. Tension. The first 60dp of travel only moves the row 20dp, so a stray horizontal
- *    nudge during a scroll goes nowhere and simply springs back.
- * 2. Coming loose. Past that the row springs up to the finger on a soft spring and
- *    then tracks it exactly, which is the moment the gesture announces itself.
- * 3. Commit. Past 35 percent of the width the action is armed, with a haptic tick on
- *    the crossing in both directions, and letting go flings the row off the edge.
+ * The gesture has three stages:
  *
- * The delete fires as the fling starts rather than after it, so the row glides out
- * while the gap closes underneath it. Cancelling settles back elastically.
+ * 1. Tension. The first 60dp of travel moves the row 20dp, so a stray horizontal
+ *    nudge during a scroll goes nowhere and springs back.
+ * 2. Coming loose. Past that the row springs up to the finger and then tracks it.
+ * 3. Arming, past 35 percent of the width, with a haptic tick on the crossing in
+ *    both directions.
  *
- * The icon behind fades in with the distance and never changes size. Growing it was
- * a second thing saying what the colour and the distance already say.
+ * Letting go while armed flings the row off the edge, and the delete fires as the
+ * fling starts so the gap closes in step with it. Letting go early settles back.
+ *
+ * [key] must be stable for the row, not the row's data. Keying the gesture state on a
+ * data class meant any unrelated update to the item replaced the state mid swipe, and
+ * the row snapped back to zero instead of springing.
  */
 @Composable
 fun <T> SwipeToDelete(
     item: T,
+    key: Any,
     onDelete: (T) -> Unit,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
@@ -354,19 +359,20 @@ fun <T> SwipeToDelete(
     content: @Composable () -> Unit,
 ) {
     val density = LocalDensity.current
-    val haptics = LocalHapticFeedback.current
+    val view = androidx.compose.ui.platform.LocalView.current
     val scope = rememberCoroutineScope()
 
-    val offset = remember(item) { Animatable(0f) }
-    var accumulated by remember(item) { mutableFloatStateOf(0f) }
-    var loose by remember(item) { mutableStateOf(false) }
-    var armed by remember(item) { mutableStateOf(false) }
-    var removed by remember(item) { mutableStateOf(false) }
-    var widthPx by remember(item) { mutableIntStateOf(1) }
+    val offset = remember(key) { Animatable(0f) }
+    var accumulated by remember(key) { mutableFloatStateOf(0f) }
+    var loose by remember(key) { mutableStateOf(false) }
+    var armed by remember(key) { mutableStateOf(false) }
+    var removed by remember(key) { mutableStateOf(false) }
+    var widthPx by remember(key) { mutableIntStateOf(1) }
 
     val tensionTravel = with(density) { 60.dp.toPx() }
     val tensionMax = with(density) { 20.dp.toPx() }
     val revealFade = with(density) { 56.dp.toPx() }
+    val panelGap = with(density) { 8.dp.toPx() }
 
     AnimatedVisibility(
         visible = !removed,
@@ -379,31 +385,35 @@ fun <T> SwipeToDelete(
                 .fillMaxWidth()
                 .onSizeChanged { widthPx = it.width.coerceAtLeast(1) },
         ) {
-            val shown = -offset.value
-            if (shown > 0.5f) {
-                Box(
-                    modifier = Modifier
-                        .matchParentSize()
-                        .clip(shape)
-                        .background(background),
-                    contentAlignment = Alignment.CenterEnd,
-                ) {
-                    Icon(
-                        painter = MarkIcons.Delete,
-                        contentDescription = null,
-                        tint = iconTint,
+            val shown = (-offset.value - panelGap).coerceAtLeast(0f)
+            Box(modifier = Modifier.matchParentSize(), contentAlignment = Alignment.CenterEnd) {
+                if (shown > 1f) {
+                    Box(
                         modifier = Modifier
-                            .padding(end = 24.dp)
-                            .size(22.dp)
-                            .graphicsLayer { alpha = (shown / revealFade).coerceIn(0f, 1f) },
-                    )
+                            .fillMaxHeight()
+                            .width(with(density) { shown.toDp() })
+                            .clip(shape)
+                            .background(background),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Icon(
+                            painter = MarkIcons.Delete,
+                            contentDescription = null,
+                            tint = iconTint,
+                            modifier = Modifier
+                                .size(22.dp)
+                                .graphicsLayer {
+                                    alpha = ((shown + panelGap) / revealFade).coerceIn(0f, 1f)
+                                },
+                        )
+                    }
                 }
             }
 
             Box(
                 modifier = Modifier
                     .offset { IntOffset(offset.value.toInt(), 0) }
-                    .pointerInput(item, enabled) {
+                    .pointerInput(key, enabled) {
                         if (!enabled) return@pointerInput
                         detectHorizontalDragGestures(
                             onDragStart = {
@@ -425,16 +435,11 @@ fun <T> SwipeToDelete(
                                         return@detectHorizontalDragGestures
                                     }
                                     loose = true
-                                    haptics.performHapticFeedback(
-                                        HapticFeedbackType.LongPress
-                                    )
+                                    view.performHapticFeedback(GestureThresholdActivate)
                                     scope.launch {
                                         offset.animateTo(
                                             accumulated,
-                                            spring(
-                                                dampingRatio = 0.8f,
-                                                stiffness = 200f,
-                                            ),
+                                            spring(dampingRatio = 0.8f, stiffness = 200f),
                                         )
                                     }
                                     return@detectHorizontalDragGestures
@@ -443,14 +448,16 @@ fun <T> SwipeToDelete(
                                 val nowArmed = travelled > widthPx * CommitFraction
                                 if (nowArmed != armed) {
                                     armed = nowArmed
-                                    haptics.performHapticFeedback(
-                                        HapticFeedbackType.LongPress
+                                    view.performHapticFeedback(
+                                        if (nowArmed) GestureThresholdActivate
+                                        else GestureThresholdDeactivate
                                     )
                                 }
                                 scope.launch { offset.snapTo(accumulated) }
                             },
                             onDragEnd = {
                                 if (armed) {
+                                    view.performHapticFeedback(android.view.HapticFeedbackConstants.CONFIRM)
                                     removed = true
                                     // Fired now, not after the fling, so the gap closes
                                     // in step with the row gliding away.
@@ -458,20 +465,14 @@ fun <T> SwipeToDelete(
                                     scope.launch {
                                         offset.animateTo(
                                             -widthPx * 1.1f,
-                                            tween(
-                                                durationMillis = 260,
-                                                easing = MarkMotion.Standard,
-                                            ),
+                                            tween(durationMillis = 260, easing = MarkMotion.Standard),
                                         )
                                     }
                                 } else {
                                     scope.launch {
                                         offset.animateTo(
                                             0f,
-                                            spring(
-                                                dampingRatio = 0.75f,
-                                                stiffness = 1500f,
-                                            ),
+                                            spring(dampingRatio = 0.75f, stiffness = 1500f),
                                         )
                                     }
                                 }
@@ -483,10 +484,7 @@ fun <T> SwipeToDelete(
                                 scope.launch {
                                     offset.animateTo(
                                         0f,
-                                        spring(
-                                            dampingRatio = 0.75f,
-                                            stiffness = 1500f,
-                                        ),
+                                        spring(dampingRatio = 0.75f, stiffness = 1500f),
                                     )
                                 }
                                 loose = false
@@ -501,6 +499,24 @@ fun <T> SwipeToDelete(
         }
     }
 }
+
+/**
+ * The system ticks for crossing a gesture threshold, which is exactly what arming and
+ * disarming a swipe is. Available from Android 13, and harmless to ask for below it.
+ */
+private val GestureThresholdActivate =
+    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+        android.view.HapticFeedbackConstants.GESTURE_THRESHOLD_ACTIVATE
+    } else {
+        android.view.HapticFeedbackConstants.LONG_PRESS
+    }
+
+private val GestureThresholdDeactivate =
+    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+        android.view.HapticFeedbackConstants.GESTURE_THRESHOLD_DEACTIVATE
+    } else {
+        android.view.HapticFeedbackConstants.LONG_PRESS
+    }
 
 /** How far across the row the gesture has to go before letting go deletes. */
 private const val CommitFraction = 0.35f

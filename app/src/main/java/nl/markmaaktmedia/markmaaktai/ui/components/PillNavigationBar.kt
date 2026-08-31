@@ -83,7 +83,11 @@ fun PillNavigationBar(
             .background(containerColor)
             .padding(Padding),
     ) {
-        val slotWidth = (maxWidth - Padding * 2) / items.size
+        // BoxWithConstraints reports the space it has left after its own modifiers, so
+        // the padding is already gone by the time this runs. Subtracting it a second
+        // time made every slot narrower than its tab, and the error piled up on the
+        // last one: the pill sat flush on the left and left a gap on the right.
+        val slotWidth = maxWidth / items.size
         val target = slotWidth * selectedIndex
 
         val position = remember { Animatable(target.value) }

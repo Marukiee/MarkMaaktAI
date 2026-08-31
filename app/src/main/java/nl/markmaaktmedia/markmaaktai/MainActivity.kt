@@ -46,6 +46,9 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
 
         val openSummary = intent?.hasExtra(EXTRA_SUMMARY_ID) == true
+        intent?.getLongExtra(EXTRA_CONVERSATION_ID, -1L)
+            ?.takeIf { it > 0 }
+            ?.let(handoff::offerConversation)
         checkForUpdates()
 
         setContent {
@@ -123,5 +126,8 @@ class MainActivity : ComponentActivity() {
 
     companion object {
         const val EXTRA_SUMMARY_ID = "summary_id"
+
+        /** The thread the assistant sheet wants the app to carry on with. */
+        const val EXTRA_CONVERSATION_ID = "conversation_id"
     }
 }
