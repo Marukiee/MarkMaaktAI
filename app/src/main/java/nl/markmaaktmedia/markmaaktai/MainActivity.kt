@@ -46,7 +46,7 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
 
         val openSummary = intent?.hasExtra(EXTRA_SUMMARY_ID) == true
-        checkForUpdatesOncePerDay()
+        checkForUpdates()
 
         setContent {
             val settings by settingsRepository.settings.collectAsState(initial = UserSettings())
@@ -110,15 +110,12 @@ class MainActivity : ComponentActivity() {
     }
 
     /**
-     * One update check a day, at launch. No background job and no service: an app that
-     * checks for its own updates on a schedule is spending the user's battery on
-     * something that can wait until they next open it.
+     * Checks on every launch. There is no background job and no service: one small
+     * request when the app is opened is the cheapest way to have the banner be right,
+     * and anything less often means a release sits unnoticed for a day.
      */
-    private fun checkForUpdatesOncePerDay() {
+    private fun checkForUpdates() {
         lifecycleScope.launch {
-            val settings = settingsRepository.current()
-            val elapsed = System.currentTimeMillis() - settings.lastUpdateCheck
-            if (elapsed < CHECK_INTERVAL_MS) return@launch
             settingsRepository.setLastUpdateCheck(System.currentTimeMillis())
             updateRepository.check()
         }
@@ -126,11 +123,5 @@ class MainActivity : ComponentActivity() {
 
     companion object {
         const val EXTRA_SUMMARY_ID = "summary_id"
-        /**
-         * Three hours. Short enough that a release published this morning is on the
-         * banner by lunch, long enough that opening the app ten times in a row is
-         * still one request.
-         */
-        private const val CHECK_INTERVAL_MS = 3 * 60 * 60 * 1000L
     }
 }

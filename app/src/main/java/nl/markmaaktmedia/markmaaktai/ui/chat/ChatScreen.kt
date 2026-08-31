@@ -26,6 +26,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.isImeVisible
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -45,6 +46,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
@@ -79,6 +81,7 @@ fun ChatScreen(
 
     var historyOpen by remember { mutableStateOf(false) }
     val listState = rememberLazyListState()
+    val imeVisible = androidx.compose.foundation.layout.WindowInsets.isImeVisible
 
     val photoPicker = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.PickVisualMedia(),
@@ -140,11 +143,23 @@ fun ChatScreen(
             onToggleWebSearch = viewModel::toggleWebSearch,
             onTogglePhoneContext = viewModel::togglePhoneContext,
             onDictate = viewModel::startDictation,
+            /*
+             * The gap under the composer exists to clear the floating navigation bar,
+             * which is drawn over this screen. Once the keyboard is up the navigation
+             * bar is gone, so keeping that gap left the input floating well above the
+             * keys. It is only applied while the keyboard is down.
+             */
             modifier = Modifier
                 .imePadding()
-                .navigationBarsPadding()
-                // Clears the floating navigation bar, which is drawn over this screen.
-                .padding(bottom = 76.dp),
+                .then(
+                    if (imeVisible) {
+                        Modifier
+                    } else {
+                        Modifier
+                            .navigationBarsPadding()
+                            .padding(bottom = 76.dp)
+                    }
+                ),
         )
     }
 
@@ -174,6 +189,7 @@ fun ChatScreen(
             viewModel.newConversation()
             historyOpen = false
         },
+        onTogglePin = viewModel::togglePin,
         onDelete = viewModel::deleteConversation,
         onDismiss = { historyOpen = false },
     )
@@ -318,6 +334,7 @@ private fun ConversationPanel(
     currentId: Long,
     onOpen: (Long) -> Unit,
     onNew: () -> Unit,
+    onTogglePin: (ConversationEntity) -> Unit,
     onDelete: (Long) -> Unit,
     onDismiss: () -> Unit,
 ) {
@@ -339,6 +356,19 @@ private fun ConversationPanel(
             decorFitsSystemWindows = false,
         ),
     ) {
+        val dialogWindow = (androidx.compose.ui.platform.LocalView.current.parent
+            as? androidx.compose.ui.window.DialogWindowProvider)?.window
+        val lightBars = MaterialTheme.colorScheme.surface.luminance() > 0.5f
+        androidx.compose.runtime.SideEffect {
+            dialogWindow?.let { window ->
+                window.setDimAmount(0f)
+                androidx.core.view.WindowCompat.setDecorFitsSystemWindows(window, false)
+                androidx.core.view.WindowCompat
+                    .getInsetsController(window, window.decorView)
+                    .isAppearanceLightStatusBars = lightBars
+            }
+        }
+
     Box(modifier = Modifier.fillMaxSize()) {
         Box(
             modifier = Modifier
@@ -407,34 +437,126 @@ private fun ConversationPanel(
                             onDelete = { onDelete(it.id) },
                             shape = CardSquircle,
                         ) {
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clip(CardSquircle)
-                                    .background(
-                                        if (conversation.id == currentId) {
-                                            MaterialTheme.colorScheme.secondaryContainer
-                                        } else {
-                                            MaterialTheme.colorScheme.surfaceContainer
-                                        }
-                                    )
-                                    .bouncyClickable { onOpen(conversation.id) }
-                                    .padding(horizontal = 18.dp, vertical = 16.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                            ) {
-                                Text(
-                                    text = conversation.title,
-                                    style = MaterialTheme.typography.bodyLarge,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis,
-                                )
-                            }
+                            ConversationRow(
+                                conversation = conversation,
+                                selected = conversation.id == currentId,
+                                onOpen = { onOpen(conversation.id) },
+                                onTogglePin = { onTogglePin(conversation) },
+                                onDelete = { onDelete(conversation.id) },
+                            )
                         }
                     }
                 }
             }
         }
     }
+    }
+}
+
+/**
+ * One thread in the list.
+ *
+ * A pinned thread shows its pin, so the reason it is sitting above a more recent one
+ * is visible rather than mysterious. The overflow menu carries pin and delete: swipe
+ * to delete still works, but a gesture nobody was told about cannot be the only way
+ * to reach either of them.
+ */
+@Composable
+private fun ConversationRow(
+    conversation: ConversationEntity,
+    selected: Boolean,
+    onOpen: () -> Unit,
+    onTogglePin: () -> Unit,
+    onDelete: () -> Unit,
+) {
+    var menuOpen by remember { mutableStateOf(false) }
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(CardSquircle)
+            .background(
+                if (selected) MaterialTheme.colorScheme.secondaryContainer
+                else MaterialTheme.colorScheme.surfaceContainer
+            )
+            .bouncyClickable(onClick = onOpen)
+            .padding(start = 18.dp, end = 6.dp, top = 6.dp, bottom = 6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        if (conversation.pinned) {
+            androidx.compose.material3.Icon(
+                painter = MarkIcons.Pin,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier
+                    .padding(end = 10.dp)
+                    .size(15.dp),
+            )
+        }
+        Text(
+            text = conversation.title,
+            style = MaterialTheme.typography.bodyLarge,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier
+                .weight(1f)
+                .padding(vertical = 10.dp),
+        )
+
+        Box {
+            MarkIconButton(
+                icon = MarkIcons.More,
+                contentDescription = stringResource(R.string.chat_conversation_actions),
+                onClick = { menuOpen = true },
+                size = 38,
+                iconSize = 18,
+            )
+            androidx.compose.material3.DropdownMenu(
+                expanded = menuOpen,
+                onDismissRequest = { menuOpen = false },
+                shape = MaterialTheme.shapes.medium,
+                containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+            ) {
+                androidx.compose.material3.DropdownMenuItem(
+                    text = {
+                        Text(
+                            stringResource(
+                                if (conversation.pinned) R.string.chat_unpin else R.string.chat_pin
+                            )
+                        )
+                    },
+                    leadingIcon = {
+                        androidx.compose.material3.Icon(
+                            painter = if (conversation.pinned) MarkIcons.PinOff else MarkIcons.Pin,
+                            contentDescription = null,
+                        )
+                    },
+                    onClick = {
+                        menuOpen = false
+                        onTogglePin()
+                    },
+                )
+                androidx.compose.material3.DropdownMenuItem(
+                    text = {
+                        Text(
+                            text = stringResource(R.string.generic_delete),
+                            color = MaterialTheme.colorScheme.error,
+                        )
+                    },
+                    leadingIcon = {
+                        androidx.compose.material3.Icon(
+                            painter = MarkIcons.Delete,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.error,
+                        )
+                    },
+                    onClick = {
+                        menuOpen = false
+                        onDelete()
+                    },
+                )
+            }
+        }
     }
 }
 

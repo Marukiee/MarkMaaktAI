@@ -28,8 +28,8 @@ android {
         applicationId = "nl.markmaaktmedia.markmaaktai"
         minSdk = 31
         targetSdk = 36
-        versionCode = 6
-        versionName = "1.4.0"
+        versionCode = 7
+        versionName = "1.5.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables.useSupportLibrary = true
@@ -45,7 +45,7 @@ android {
 
         buildConfigField("String", "GITHUB_OWNER", "\"Marukiee\"")
         buildConfigField("String", "GITHUB_REPO", "\"MarkMaaktAI\"")
-        buildConfigField("String", "DEFAULT_SEARXNG_URL", "\"https://searx.be\"")
+        buildConfigField("String", "DEFAULT_SEARXNG_URL", "\"https://searx.example.org\"")
     }
 
     signingConfigs {
@@ -91,6 +91,7 @@ android {
                 "-opt-in=androidx.compose.material3.ExperimentalMaterial3Api",
                 "-opt-in=androidx.compose.animation.ExperimentalSharedTransitionApi",
                 "-opt-in=androidx.compose.foundation.ExperimentalFoundationApi",
+                "-opt-in=androidx.compose.foundation.layout.ExperimentalLayoutApi",
                 "-opt-in=kotlinx.coroutines.ExperimentalCoroutinesApi",
             )
         }

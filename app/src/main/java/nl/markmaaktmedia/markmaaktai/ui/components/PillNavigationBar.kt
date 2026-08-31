@@ -88,7 +88,7 @@ fun PillNavigationBar(
 
         val position = remember { Animatable(target.value) }
         LaunchedEffect(target, slotWidth) {
-            position.animateTo(target.value, animationSpec = MarkMotion.springy())
+            position.animateTo(target.value, animationSpec = MarkMotion.spatial())
         }
 
         // Distance still to travel, normalised against one slot. Feeds the stretch.

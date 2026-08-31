@@ -37,6 +37,18 @@ class WebSearchClient @Inject constructor(
 
     private val json = Json { ignoreUnknownKeys = true; isLenient = true }
 
+    /**
+     * Tries each backend in turn and returns the first that produces results.
+     *
+     * The order is deliberate. Brave is first because a key buys a real search API
+     * that answers reliably. A self hosted SearXNG is second, since someone who
+     * entered an address meant it. Wikipedia is last and needs nothing, so the switch
+     * still does something on a fresh install.
+     *
+     * There is no public SearXNG default any more. Every instance worth naming either
+     * disables the JSON endpoint or rate limits it into uselessness, so shipping one
+     * as the default meant the feature failed for everyone who never opened settings.
+     */
     suspend fun search(
         query: String,
         limit: Int,
@@ -44,13 +56,84 @@ class WebSearchClient @Inject constructor(
         braveApiKey: String,
     ): SearchOutcome = withContext(Dispatchers.IO) {
         if (query.isBlank()) return@withContext SearchOutcome.Results(emptyList())
+
+        val reasons = mutableListOf<String>()
+
         if (braveApiKey.isNotBlank()) {
             when (val brave = searchBrave(query, limit, braveApiKey)) {
-                is SearchOutcome.Results -> return@withContext brave
-                is SearchOutcome.Failed -> Log.w(TAG, "Brave failed, falling back: ${brave.reason}")
+                is SearchOutcome.Results -> if (brave.sources.isNotEmpty()) return@withContext brave
+                is SearchOutcome.Failed -> reasons += "Brave: ${brave.reason}"
             }
         }
-        searchSearxng(query, limit, searxngUrl)
+
+        if (searxngUrl.isNotBlank()) {
+            when (val searx = searchSearxng(query, limit, searxngUrl)) {
+                is SearchOutcome.Results -> if (searx.sources.isNotEmpty()) return@withContext searx
+                is SearchOutcome.Failed -> reasons += "SearXNG: ${searx.reason}"
+            }
+        }
+
+        when (val wiki = searchWikipedia(query, limit)) {
+            is SearchOutcome.Results -> if (wiki.sources.isNotEmpty()) return@withContext wiki
+            is SearchOutcome.Failed -> reasons += "Wikipedia: ${wiki.reason}"
+        }
+
+        SearchOutcome.Failed(
+            reasons.joinToString("\n").ifBlank { "No search backend returned anything" }
+        )
+    }
+
+    /**
+     * The keyless fallback.
+     *
+     * Not a web search, and it does not pretend to be one: it is an encyclopedia, so
+     * it answers questions about things and not about today. It is here because it
+     * needs no account, has a stable API, and never hands back an HTML page when JSON
+     * was asked for.
+     */
+    private fun searchWikipedia(query: String, limit: Int): SearchOutcome {
+        val language = java.util.Locale.getDefault().language.takeIf { it.isNotBlank() } ?: "en"
+        val url = "https://$language.wikipedia.org/w/api.php".toHttpUrlOrNull()
+            ?.newBuilder()
+            ?.addQueryParameter("action", "query")
+            ?.addQueryParameter("list", "search")
+            ?.addQueryParameter("srsearch", query)
+            ?.addQueryParameter("srlimit", limit.toString())
+            ?.addQueryParameter("format", "json")
+            ?.build()
+            ?: return SearchOutcome.Failed("Could not build the Wikipedia request")
+
+        val request = Request.Builder()
+            .url(url)
+            .header("Accept", "application/json")
+            .header("User-Agent", USER_AGENT)
+            .build()
+
+        return runCatching {
+            httpClient.newCall(request).execute().use { response ->
+                if (!response.isSuccessful) {
+                    return@use SearchOutcome.Failed("Wikipedia replied with status ${response.code}")
+                }
+                val body = response.body?.string().orEmpty()
+                val results = json.parseToJsonElement(body)
+                    .jsonObject["query"]?.jsonObject?.get("search")?.jsonArray.orEmpty()
+
+                SearchOutcome.Results(
+                    results.take(limit).mapNotNull { element ->
+                        val obj = element.jsonObject
+                        val title = obj["title"]?.jsonPrimitive?.contentOrNull.orEmpty()
+                        if (title.isBlank()) return@mapNotNull null
+                        WebSource(
+                            title = title,
+                            url = "https://$language.wikipedia.org/wiki/" + title.replace(' ', '_'),
+                            snippet = obj["snippet"]?.jsonPrimitive?.contentOrNull.orEmpty().stripHtml(),
+                        )
+                    }
+                )
+            }
+        }.getOrElse { error ->
+            SearchOutcome.Failed(error.message ?: "Could not reach Wikipedia")
+        }
     }
 
     private fun searchSearxng(query: String, limit: Int, baseUrl: String): SearchOutcome {
@@ -83,7 +166,15 @@ class WebSearchClient @Inject constructor(
                         }
                     )
                 }
+                val contentType = response.header("Content-Type").orEmpty()
                 val body = response.body?.string().orEmpty()
+                if (!contentType.contains("json", ignoreCase = true) || body.trimStart().startsWith("<")) {
+                    return@use SearchOutcome.Failed(
+                        "This instance answered with a web page instead of JSON, which " +
+                            "means its JSON API is switched off. Use your own instance, " +
+                            "or add a Brave key in settings."
+                    )
+                }
                 val results = json.parseToJsonElement(body).jsonObject["results"]?.jsonArray.orEmpty()
                 SearchOutcome.Results(
                     results.take(limit).mapNotNull { element ->

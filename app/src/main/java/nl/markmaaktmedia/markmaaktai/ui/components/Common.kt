@@ -465,6 +465,8 @@ fun PrimaryPillButton(
             style = MaterialTheme.typography.labelLarge,
             color = if (enabled) content else MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center,
+            maxLines = 1,
+            softWrap = false,
         )
         if (trailingIcon != null) {
             Icon(

@@ -58,6 +58,8 @@ fun MarkDialog(
     body: String? = null,
     dismissOnOutsideTap: Boolean = true,
     actions: @Composable () -> Unit = {},
+    /** The one that closes or confirms. Always gets its own full width row. */
+    primaryAction: (@Composable () -> Unit)? = null,
     content: (@Composable () -> Unit)? = null,
 ) {
     var shown by remember { mutableStateOf(false) }
@@ -122,15 +124,17 @@ fun MarkDialog(
 
             if (body != null) {
                 VSpace(10)
-                Text(
-                    text = body,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier
-                        .heightIn(max = 260.dp)
-                        .verticalScroll(rememberScrollState()),
-                )
+                androidx.compose.foundation.text.selection.SelectionContainer {
+                    Text(
+                        text = body,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier
+                            .heightIn(max = 280.dp)
+                            .verticalScroll(rememberScrollState()),
+                    )
+                }
             }
 
             if (content != null) {
@@ -138,12 +142,17 @@ fun MarkDialog(
                 content()
             }
 
-            VSpace(24)
-            Row(
+            VSpace(20)
+            androidx.compose.foundation.layout.FlowRow(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.CenterHorizontally),
+                horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 actions()
+            }
+            if (primaryAction != null) {
+                VSpace(10)
+                Box(modifier = Modifier.fillMaxWidth()) { primaryAction() }
             }
         }
     }
@@ -174,6 +183,7 @@ fun MarkErrorDialog(
         icon = MarkIcons.Error,
         iconTint = MaterialTheme.colorScheme.error,
         onDismiss = onDismiss,
+        primaryAction = { PrimaryPillButton(label = confirmLabel, onClick = onDismiss) },
         actions = {
             SecondaryPillButton(
                 label = copyLabel,
@@ -183,9 +193,12 @@ fun MarkErrorDialog(
                 },
             )
             if (retryLabel != null && onRetry != null) {
-                SecondaryPillButton(label = retryLabel, onClick = { onDismiss(); onRetry() })
+                SecondaryPillButton(
+                    label = retryLabel,
+                    icon = MarkIcons.Refresh,
+                    onClick = { onDismiss(); onRetry() },
+                )
             }
-            PrimaryPillButton(label = confirmLabel, onClick = onDismiss)
         },
     )
 }

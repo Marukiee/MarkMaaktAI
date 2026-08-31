@@ -48,6 +48,10 @@ class ChatRepository @Inject constructor(
 
     suspend fun deleteConversation(conversationId: Long) = conversationDao.delete(conversationId)
 
+    /** Pinned threads sort to the top and stay there regardless of when they were used. */
+    suspend fun setPinned(conversationId: Long, pinned: Boolean) =
+        conversationDao.setPinned(conversationId, pinned)
+
     suspend fun addUserMessage(conversationId: Long, text: String, imagePath: String?): Long {
         val now = System.currentTimeMillis()
         val id = messageDao.insert(

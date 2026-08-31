@@ -158,6 +158,12 @@ class ChatViewModel @Inject constructor(
         }
     }
 
+    fun togglePin(conversation: ConversationEntity) {
+        viewModelScope.launch {
+            chatRepository.setPinned(conversation.id, !conversation.pinned)
+        }
+    }
+
     fun deleteMessage(messageId: Long) {
         viewModelScope.launch { chatRepository.deleteMessage(messageId) }
     }

@@ -93,7 +93,7 @@ fun SettingsScreen(
     crashReport?.let { report ->
         nl.markmaaktmedia.markmaaktai.ui.components.MarkErrorDialog(
             title = stringResource(R.string.settings_last_crash),
-            message = report,
+            message = report.ifBlank { stringResource(R.string.settings_last_crash_none) },
             confirmLabel = stringResource(R.string.generic_close),
             copyLabel = stringResource(R.string.chat_copy),
             retryLabel = stringResource(R.string.generic_delete),

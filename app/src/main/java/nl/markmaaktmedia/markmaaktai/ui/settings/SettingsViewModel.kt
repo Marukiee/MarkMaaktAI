@@ -62,7 +62,8 @@ class SettingsViewModel @Inject constructor(
     val hasCrashReport: Boolean get() = crashReporter.lastCrash() != null
 
     fun showLastCrash() {
-        _crashReport.value = crashReporter.lastCrash() ?: NO_CRASH
+        // Blank rather than a sentence, so the screen supplies a translated one.
+        _crashReport.value = crashReporter.lastCrash() ?: ""
     }
 
     fun dismissCrashReport() {
@@ -208,7 +209,6 @@ class SettingsViewModel @Inject constructor(
     private companion object {
         /** Six hours, so opening settings a few times in a row is not six requests. */
         const val CHECK_INTERVAL_MS = 6 * 60 * 60 * 1000L
-        const val NO_CRASH = "No crash has been recorded."
     }
 
     private fun isDefaultAssistant(): Boolean {
