@@ -41,6 +41,7 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import nl.markmaaktmedia.markmaaktai.R
+import nl.markmaaktmedia.markmaaktai.ui.components.HelpTip
 import nl.markmaaktmedia.markmaaktai.ui.components.MarkIconButton
 import nl.markmaaktmedia.markmaaktai.ui.components.PillSpinner
 import nl.markmaaktmedia.markmaaktai.ui.components.bouncyClickable
@@ -110,6 +111,7 @@ fun ChatComposer(
                 active = state.phoneContextEnabled,
                 onClick = onTogglePhoneContext,
             )
+            HelpTip(text = stringResource(R.string.help_toggles))
         }
 
         val busy = state.isGenerating || state.isListening
@@ -294,19 +296,19 @@ private fun ComposerToggle(
             .clip(PillShape)
             .background(container)
             .bouncyClickable(onClick = onClick)
-            .padding(horizontal = 14.dp, vertical = 8.dp),
+            .padding(horizontal = 11.dp, vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(7.dp),
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
     ) {
         Icon(
             painter = icon,
             contentDescription = null,
             tint = content,
-            modifier = Modifier.size(15.dp),
+            modifier = Modifier.size(14.dp),
         )
         Text(
             text = label,
-            style = MaterialTheme.typography.labelMedium,
+            style = MaterialTheme.typography.labelSmall,
             color = content,
         )
     }

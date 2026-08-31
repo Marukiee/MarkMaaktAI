@@ -59,7 +59,9 @@ import nl.markmaaktmedia.markmaaktai.R
 import nl.markmaaktmedia.markmaaktai.data.db.ConversationEntity
 import nl.markmaaktmedia.markmaaktai.ui.components.EmptyState
 import nl.markmaaktmedia.markmaaktai.ui.components.MarkErrorDialog
+import nl.markmaaktmedia.markmaaktai.ui.components.MarkDropdownMenu
 import nl.markmaaktmedia.markmaaktai.ui.components.MarkIconButton
+import nl.markmaaktmedia.markmaaktai.ui.components.MarkMenuItem
 import nl.markmaaktmedia.markmaaktai.ui.components.PrimaryPillButton
 import nl.markmaaktmedia.markmaaktai.ui.components.SuggestionChip
 import nl.markmaaktmedia.markmaaktai.ui.components.SwipeToDelete
@@ -356,6 +358,9 @@ private fun ConversationPanel(
     LaunchedEffect(open) {
         if (open) {
             windowPresent = true
+            // One frame later, so AnimatedVisibility is composed hidden first and has
+            // a state to animate out of. Setting both together made it appear.
+            androidx.compose.runtime.withFrameNanos { }
             contentVisible = true
         } else {
             contentVisible = false
@@ -537,42 +542,21 @@ private fun ConversationRow(
                 size = 38,
                 iconSize = 18,
             )
-            androidx.compose.material3.DropdownMenu(
+            MarkDropdownMenu(
                 expanded = menuOpen,
                 onDismissRequest = { menuOpen = false },
-                shape = MaterialTheme.shapes.medium,
-                containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
             ) {
-                androidx.compose.material3.DropdownMenuItem(
-                    text = {
-                        Text(
-                            stringResource(
-                                if (conversation.pinned) R.string.chat_unpin else R.string.chat_pin
-                            )
-                        )
-                    },
-                    leadingIcon = {
-                        androidx.compose.material3.Icon(
-                            painter = if (conversation.pinned) MarkIcons.PinOff else MarkIcons.Pin,
-                            contentDescription = null,
-                        )
-                    },
+                MarkMenuItem(
+                    label = stringResource(
+                        if (conversation.pinned) R.string.chat_unpin else R.string.chat_pin
+                    ),
+                    icon = if (conversation.pinned) MarkIcons.PinOff else MarkIcons.Pin,
                     onClick = { runAfterMenuCloses(onTogglePin) },
                 )
-                androidx.compose.material3.DropdownMenuItem(
-                    text = {
-                        Text(
-                            text = stringResource(R.string.generic_delete),
-                            color = MaterialTheme.colorScheme.error,
-                        )
-                    },
-                    leadingIcon = {
-                        androidx.compose.material3.Icon(
-                            painter = MarkIcons.Delete,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.error,
-                        )
-                    },
+                MarkMenuItem(
+                    label = stringResource(R.string.generic_delete),
+                    icon = MarkIcons.Delete,
+                    tint = MaterialTheme.colorScheme.error,
                     onClick = { runAfterMenuCloses(onDelete) },
                 )
             }

@@ -106,24 +106,21 @@ class ScreenshotRepository @Inject constructor(
                 return@forEach
             }
             val prompt = buildString {
-                appendLine("This is the text read from a screenshot on a phone.")
-                appendLine("Reply with two lines and nothing else.")
-                appendLine("Line 1: a title of at most five words.")
-                appendLine("Line 2: one sentence saying what the screenshot is.")
+                appendLine("Below is the text read from a screenshot on a phone.")
+                appendLine("Give it a short name, at most five words.")
+                appendLine("Reply with the name only. No quotes, no label, no full stop.")
                 appendLine()
                 appendLine(shot.ocrText.take(MAX_OCR_FOR_MODEL))
+                append("Name:")
             }
-            val answer = orchestrator.complete(prompt, maxTokens = 64).getOrNull()
+            val answer = orchestrator.complete(prompt, maxTokens = 32).getOrNull()
             if (answer.isNullOrBlank()) return@withContext enriched
 
-            val lines = answer.lines().map { it.trim() }.filter { it.isNotBlank() }
-            val title = lines.firstOrNull()?.trim('"', '.', '-', ' ')?.take(60).orEmpty()
-            val summary = lines.getOrNull(1)?.trim('"', ' ')?.take(200).orEmpty()
+            val title = cleanTitle(answer)
 
             dao.updateWithIndex(
                 shot.copy(
                     title = title.ifBlank { shot.title },
-                    summary = summary.ifBlank { shot.summary },
                     aiProcessed = true,
                 )
             )
@@ -131,6 +128,29 @@ class ScreenshotRepository @Inject constructor(
         }
         enriched
     }
+
+    /**
+     * Turns whatever the model said into something that fits under a thumbnail.
+     *
+     * Small models answer the letter of a prompt rather than its intent: asked for two
+     * lines they reply "Line 1: '...'", and they will hand back an escaped newline as
+     * four characters rather than a break. Everything below the first real line is
+     * dropped, along with the labels and quoting they wrap it in.
+     */
+    private fun cleanTitle(raw: String): String = raw
+        .replace("\\n", "\n")
+        .lines()
+        .map { line ->
+            line.trim()
+                .removePrefix("Name:")
+                .removePrefix("Title:")
+                .replace(LINE_LABEL, "")
+                .trim()
+                .trim('"', '\'', '*', '-', ':', '.', ' ')
+        }
+        .firstOrNull { it.length >= 3 }
+        .orEmpty()
+        .take(48)
 
     /** Drops rows whose picture the user deleted from the gallery. */
     suspend fun pruneMissing(): Int = withContext(Dispatchers.IO) {
@@ -291,6 +311,7 @@ class ScreenshotRepository @Inject constructor(
         const val MAX_OCR_FOR_MODEL = 1200
         val TITLE_RANGE = 4..60
         val NON_WORD = Regex("[^\\p{L}\\p{Nd}]+")
+        val LINE_LABEL = Regex("^Line\\s*\\d+\\s*:", RegexOption.IGNORE_CASE)
         val dateFormat = SimpleDateFormat("d MMM HH:mm", Locale.getDefault())
     }
 }

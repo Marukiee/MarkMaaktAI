@@ -73,7 +73,7 @@ class SpeechInputManager @Inject constructor(
         } else if (hasSystemRecogniser()) {
             emitAll(listenWithSystem())
         } else {
-            emit(SpeechEvent.Failed("No speech model installed and this phone has no recogniser"))
+            emit(SpeechEvent.Failed(NO_BACKEND))
         }
     }
 
@@ -114,7 +114,7 @@ class SpeechInputManager @Inject constructor(
             true
         }.getOrElse { error ->
             Log.w(TAG, "Vosk could not start", error)
-            trySend(SpeechEvent.Failed(error.message ?: "The speech model could not be loaded"))
+            trySend(SpeechEvent.Failed(NO_BACKEND))
             close()
             false
         }
@@ -201,5 +201,13 @@ class SpeechInputManager @Inject constructor(
     private companion object {
         const val TAG = "SpeechInputManager"
         const val SAMPLE_RATE = 16000.0f
+
+        /**
+         * Said instead of "dictation failed", which is true but useless. The phone
+         * has nothing to listen with until a speech model is downloaded, and that
+         * is the one thing the user can actually do about it.
+         */
+        const val NO_BACKEND =
+            "Speaking needs a speech model. Download one under Settings, Models."
     }
 }

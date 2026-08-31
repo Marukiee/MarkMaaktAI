@@ -12,6 +12,9 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.Orientation
+import androidx.compose.foundation.gestures.draggable
+import androidx.compose.foundation.gestures.rememberDraggableState
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -22,11 +25,13 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material3.Icon
@@ -34,6 +39,9 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -52,7 +60,10 @@ import nl.markmaaktmedia.markmaaktai.R
 import nl.markmaaktmedia.markmaaktai.data.db.ScreenshotEntity
 import nl.markmaaktmedia.markmaaktai.ui.components.EmptyState
 import nl.markmaaktmedia.markmaaktai.ui.components.PillBadge
+import nl.markmaaktmedia.markmaaktai.ui.components.MarkIconButton
 import nl.markmaaktmedia.markmaaktai.ui.components.PillSpinner
+import nl.markmaaktmedia.markmaaktai.ui.components.predictiveBack
+import nl.markmaaktmedia.markmaaktai.ui.components.rememberPredictiveBack
 import nl.markmaaktmedia.markmaaktai.ui.components.VSpace
 import nl.markmaaktmedia.markmaaktai.ui.components.bouncyClickable
 import nl.markmaaktmedia.markmaaktai.ui.theme.MarkIcons
@@ -158,7 +169,7 @@ fun ShotsScreen(
             CategoryRow(
                 selected = state.category,
                 onSelect = viewModel::setCategory,
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                modifier = Modifier.padding(vertical = 8.dp),
             )
 
             when {
@@ -216,6 +227,7 @@ fun ShotsScreen(
         }
 
         val opened = shots.firstOrNull { it.id == state.openedId }
+        val viewerBack = rememberPredictiveBack(enabled = opened != null) { viewModel.open(null) }
         AnimatedVisibility(
             visible = opened != null,
             enter = scaleIn(initialScale = 0.88f, animationSpec = MarkMotion.springy()) + fadeIn(),
@@ -223,6 +235,7 @@ fun ShotsScreen(
         ) {
             opened?.let { shot ->
                 ShotDetail(
+                    modifier = Modifier.predictiveBack(viewerBack),
                     shot = shot,
                     onClose = { viewModel.open(null) },
                     onFavourite = { viewModel.toggleFavourite(shot) },
@@ -306,11 +319,12 @@ private fun CategoryRow(
         "other" to stringResource(R.string.category_other),
     )
 
-    Row(
-        modifier = modifier.horizontalScroll(rememberScrollState()),
+    androidx.compose.foundation.lazy.LazyRow(
+        modifier = modifier,
         horizontalArrangement = Arrangement.spacedBy(8.dp),
+        contentPadding = PaddingValues(horizontal = 16.dp),
     ) {
-        categories.forEach { (key, label) ->
+        items(categories) { (key, label) ->
             val active = selected == key
             Box(
                 modifier = Modifier
@@ -380,13 +394,14 @@ private fun ShotTile(
 @Composable
 private fun ShotDetail(
     shot: ScreenshotEntity,
+    modifier: Modifier = Modifier,
     onClose: () -> Unit,
     onFavourite: () -> Unit,
     onOpenInGallery: () -> Unit,
     onAsk: () -> Unit,
 ) {
     Box(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.scrim.copy(alpha = 0.72f))
             // Tapping the backdrop closes. No ripple and no press scale here: this is
@@ -399,9 +414,12 @@ private fun ShotDetail(
             ),
         contentAlignment = Alignment.Center,
     ) {
+        var drag by remember { mutableFloatStateOf(0f) }
+
         Column(
             modifier = Modifier
                 .padding(20.dp)
+                .offset { androidx.compose.ui.unit.IntOffset(0, drag.toInt().coerceAtLeast(0)) }
                 .clip(CardSquircle)
                 .background(MaterialTheme.colorScheme.surfaceContainerLow)
                 // Swallows taps so pressing the picture, or missing a button by a few
@@ -411,8 +429,29 @@ private fun ShotDetail(
                     indication = null,
                     onClick = {},
                 )
+                // Flicking a picture away is the gesture people try first, so it is
+                // wired up rather than left to the button alone.
+                .draggable(
+                    orientation = Orientation.Vertical,
+                    state = rememberDraggableState { delta -> drag += delta },
+                    onDragStopped = {
+                        if (drag > DismissDistance) onClose() else drag = 0f
+                    },
+                )
                 .padding(16.dp),
         ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.End,
+            ) {
+                MarkIconButton(
+                    icon = MarkIcons.Close,
+                    contentDescription = stringResource(R.string.generic_close),
+                    onClick = onClose,
+                    size = 34,
+                    iconSize = 17,
+                )
+            }
             AsyncImage(
                 model = Uri.parse(shot.contentUri),
                 contentDescription = shot.title,
@@ -459,6 +498,9 @@ private fun ShotDetail(
         }
     }
 }
+
+/** How far the card has to be pulled down before letting go closes it. */
+private const val DismissDistance = 220f
 
 private fun mediaPermissions(): Array<String> =
     if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
