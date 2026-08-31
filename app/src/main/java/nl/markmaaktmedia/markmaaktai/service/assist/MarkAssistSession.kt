@@ -136,14 +136,45 @@ class MarkAssistSession(context: Context) :
     override fun onShow(args: Bundle?, showFlags: Int) {
         super.onShow(args, showFlags)
         lifecycleRegistry.currentState = Lifecycle.State.RESUMED
-        state.value = AssistUiState(hasScreenContext = false)
+
+        /*
+         * The session window is not full screen by default, which left the glow
+         * clipped to the sheet's own bounds and the sheet sitting under the gesture
+         * bar. Taking the whole display and drawing behind the system bars is what
+         * lets the light reach all four edges.
+         */
+        runCatching {
+            window?.window?.let { w ->
+                w.setLayout(
+                    android.view.ViewGroup.LayoutParams.MATCH_PARENT,
+                    android.view.ViewGroup.LayoutParams.MATCH_PARENT,
+                )
+                w.setBackgroundDrawable(android.graphics.drawable.ColorDrawable(0))
+                androidx.core.view.WindowCompat.setDecorFitsSystemWindows(w, false)
+            }
+        }
+
+        // The counter is what restarts the entry animation. Without it a second
+        // summoning reuses the composition and the sheet is simply there.
+        state.value = AssistUiState(showId = state.value.showId + 1)
         screenText = ""
         structureText = ""
-        // Pressing the power button and talking should be the whole interaction, so
-        // the microphone opens itself. It only starts when the permission is already
-        // granted: a permission prompt cannot be shown from a voice session, and
-        // asking for one here would just fail silently.
-        if (entryPoint.speechInput().hasMicrophonePermission()) toggleDictation()
+
+        scope.launch { startListeningIfPossible() }
+    }
+
+    /**
+     * Opens the microphone, but only when something can actually listen.
+     *
+     * Starting it regardless meant a phone with no speech model and no platform
+     * recogniser greeted the user with "Dictation failed" in red before they had done
+     * anything. Silence is the better answer: the text field still works.
+     */
+    private suspend fun startListeningIfPossible() {
+        val speech = entryPoint.speechInput()
+        if (!speech.hasMicrophonePermission()) return
+        if (!speech.hasOfflineModel() && !speech.hasSystemRecogniser()) return
+        toggleDictation()
     }
 
     override fun onHide() {

@@ -228,7 +228,9 @@ class ChatViewModel @Inject constructor(
             val outcome = searchClient.search(
                 query = question,
                 limit = prefs.searchResultCount,
-                searxngUrl = prefs.searxngUrl.ifBlank { nl.markmaaktmedia.markmaaktai.BuildConfig.DEFAULT_SEARXNG_URL },
+                // Whatever the user typed, and nothing when they typed nothing. The
+                // placeholder in settings is an example address, not a server.
+                searxngUrl = prefs.searxngUrl,
                 braveApiKey = prefs.braveApiKey,
             )
             when (outcome) {

@@ -37,8 +37,13 @@ class AssistViewModel @Inject constructor(
 
     init {
         // Same reason as the voice session: the sheet is opened to say something, so
-        // it starts listening rather than waiting to be told to.
-        if (speechInput.hasMicrophonePermission()) toggleDictation()
+        // it starts listening. Only when there is something to listen with, though,
+        // or the first thing the user sees is a failure they did not cause.
+        viewModelScope.launch {
+            val canListen = speechInput.hasMicrophonePermission() &&
+                (speechInput.hasOfflineModel() || speechInput.hasSystemRecogniser())
+            if (canListen) toggleDictation()
+        }
     }
 
     fun onQueryChange(value: String) {

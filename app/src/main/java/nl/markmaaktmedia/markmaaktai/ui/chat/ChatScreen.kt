@@ -26,9 +26,8 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.imePadding
-import androidx.compose.foundation.layout.isImeVisible
-import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.ime
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.systemBarsPadding
@@ -53,6 +52,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.launch
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import nl.markmaaktmedia.markmaaktai.R
@@ -82,7 +82,12 @@ fun ChatScreen(
 
     var historyOpen by remember { mutableStateOf(false) }
     val listState = rememberLazyListState()
-    val imeVisible = androidx.compose.foundation.layout.WindowInsets.isImeVisible
+    val density = androidx.compose.ui.platform.LocalDensity.current
+    val imeBottom = androidx.compose.foundation.layout.WindowInsets.ime.getBottom(density)
+    val navigationBottom =
+        androidx.compose.foundation.layout.WindowInsets.navigationBars.getBottom(density)
+    val restingGap = with(density) { NavigationBarClearance.roundToPx() } + navigationBottom
+    val composerBottomInset = with(density) { maxOf(imeBottom, restingGap).toDp() }
 
     val photoPicker = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.PickVisualMedia(),
@@ -156,22 +161,18 @@ fun ChatScreen(
             onTogglePhoneContext = viewModel::togglePhoneContext,
             onDictate = viewModel::startDictation,
             /*
-             * The gap under the composer exists to clear the floating navigation bar,
-             * which is drawn over this screen. Once the keyboard is up the navigation
-             * bar is gone, so keeping that gap left the input floating well above the
-             * keys. It is only applied while the keyboard is down.
+             * One continuous bottom inset instead of two that swap over.
+             *
+             * The bar has to clear the keyboard when it is up, and the floating
+             * navigation bar when it is down. Switching between imePadding and a
+             * fixed gap meant that at the moment the keyboard finished closing the
+             * padding jumped from zero to the full gap, so the composer dropped
+             * behind the navigation bar and sprang back up. Taking the larger of the
+             * two every frame gives the same two resting places with nothing
+             * discontinuous in between: the keyboard carries it down, and it comes to
+             * rest on the navigation bar.
              */
-            modifier = Modifier
-                .imePadding()
-                .then(
-                    if (imeVisible) {
-                        Modifier
-                    } else {
-                        Modifier
-                            .navigationBarsPadding()
-                            .padding(bottom = 76.dp)
-                    }
-                ),
+            modifier = Modifier.padding(bottom = composerBottomInset),
         )
     }
 
@@ -350,16 +351,26 @@ private fun ConversationPanel(
     onDelete: (Long) -> Unit,
     onDismiss: () -> Unit,
 ) {
-    var shown by remember { mutableStateOf(false) }
-    LaunchedEffect(Unit) { shown = true }
+    var windowPresent by remember { mutableStateOf(false) }
+    var contentVisible by remember { mutableStateOf(false) }
+    LaunchedEffect(open) {
+        if (open) {
+            windowPresent = true
+            contentVisible = true
+        } else {
+            contentVisible = false
+            // Long enough for the slide out to finish before the window goes.
+            kotlinx.coroutines.delay(260)
+            windowPresent = false
+        }
+    }
+    if (!windowPresent) return
 
     val scrimAlpha by animateFloatAsState(
-        targetValue = if (shown) 0.45f else 0f,
+        targetValue = if (contentVisible) 0.45f else 0f,
         animationSpec = MarkMotion.fadeSpec(),
         label = "panelScrim",
     )
-
-    if (!open) return
 
     androidx.compose.ui.window.Dialog(
         onDismissRequest = onDismiss,
@@ -394,7 +405,7 @@ private fun ConversationPanel(
         )
 
         AnimatedVisibility(
-            visible = shown,
+            visible = contentVisible,
             enter = slideInHorizontally(animationSpec = MarkMotion.spatial()) { -it } + fadeIn(),
             exit = slideOutHorizontally(animationSpec = MarkMotion.spatial()) { -it } + fadeOut(),
             modifier = Modifier.align(Alignment.CenterStart),
@@ -420,12 +431,6 @@ private fun ConversationPanel(
                         modifier = Modifier
                             .weight(1f)
                             .padding(start = 8.dp),
-                    )
-                    MarkIconButton(
-                        icon = MarkIcons.NewChat,
-                        contentDescription = stringResource(R.string.chat_new_conversation),
-                        onClick = onNew,
-                        background = MaterialTheme.colorScheme.surfaceContainerHigh,
                     )
                 }
 
@@ -482,6 +487,15 @@ private fun ConversationRow(
     onDelete: () -> Unit,
 ) {
     var menuOpen by remember { mutableStateOf(false) }
+    val scope = androidx.compose.runtime.rememberCoroutineScope()
+
+    fun runAfterMenuCloses(action: () -> Unit) {
+        menuOpen = false
+        scope.launch {
+            kotlinx.coroutines.delay(160)
+            action()
+        }
+    }
 
     Row(
         modifier = Modifier
@@ -543,10 +557,7 @@ private fun ConversationRow(
                             contentDescription = null,
                         )
                     },
-                    onClick = {
-                        menuOpen = false
-                        onTogglePin()
-                    },
+                    onClick = { runAfterMenuCloses(onTogglePin) },
                 )
                 androidx.compose.material3.DropdownMenuItem(
                     text = {
@@ -562,10 +573,7 @@ private fun ConversationRow(
                             tint = MaterialTheme.colorScheme.error,
                         )
                     },
-                    onClick = {
-                        menuOpen = false
-                        onDelete()
-                    },
+                    onClick = { runAfterMenuCloses(onDelete) },
                 )
             }
         }
@@ -577,6 +585,9 @@ private val PanelShape = androidx.compose.foundation.shape.RoundedCornerShape(
     topEnd = 28.dp,
     bottomEnd = 28.dp,
 )
+
+/** How much room the floating navigation bar needs above the system inset. */
+private val NavigationBarClearance = 76.dp
 
 private fun openUrl(context: Context, url: String) {
     runCatching {

@@ -15,7 +15,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.sizeIn
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -37,7 +37,6 @@ import nl.markmaaktmedia.markmaaktai.R
 import nl.markmaaktmedia.markmaaktai.data.db.MessageEntity
 import nl.markmaaktmedia.markmaaktai.data.db.WebSource
 import nl.markmaaktmedia.markmaaktai.data.repository.ChatRepository
-import nl.markmaaktmedia.markmaaktai.ui.components.PillMark
 import nl.markmaaktmedia.markmaaktai.ui.components.bouncyClickable
 import nl.markmaaktmedia.markmaaktai.ui.theme.ChipSquircle
 import nl.markmaaktmedia.markmaaktai.ui.theme.MarkIcons
@@ -117,11 +116,21 @@ private fun AssistantMessage(
             .padding(horizontal = 16.dp, vertical = 6.dp),
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        PillMark(
-            size = 22.dp,
-            modifier = Modifier.padding(top = 3.dp),
-            color = MaterialTheme.colorScheme.primary,
-        )
+        Box(
+            modifier = Modifier
+                .padding(top = 2.dp)
+                .size(26.dp)
+                .clip(androidx.compose.foundation.shape.CircleShape)
+                .background(MaterialTheme.colorScheme.primaryContainer),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(
+                painter = MarkIcons.SparkleFilled,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                modifier = Modifier.size(15.dp),
+            )
+        }
 
         Column(
             modifier = Modifier.weight(1f),
@@ -212,11 +221,11 @@ private fun SourceRow(sources: List<WebSource>, onOpenSource: (String) -> Unit) 
             sources.forEachIndexed { index, source ->
                 Row(
                     modifier = Modifier
-                        .clip(ChipSquircle)
+                        .clip(androidx.compose.foundation.shape.RoundedCornerShape(percent = 50))
                         .background(MaterialTheme.colorScheme.surfaceContainerHigh)
                         .bouncyClickable { onOpenSource(source.url) }
-                        .padding(horizontal = 10.dp, vertical = 7.dp)
-                        .width(180.dp),
+                        .padding(start = 8.dp, end = 12.dp, top = 6.dp, bottom = 6.dp)
+                        .widthIn(max = 200.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(6.dp),
                 ) {
@@ -224,13 +233,13 @@ private fun SourceRow(sources: List<WebSource>, onOpenSource: (String) -> Unit) 
                         painter = MarkIcons.Link,
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(14.dp),
+                        modifier = Modifier.size(13.dp),
                     )
                     Text(
-                        text = "${index + 1}. ${source.title}",
+                        text = source.title,
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurface,
-                        maxLines = 2,
+                        maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )
                 }

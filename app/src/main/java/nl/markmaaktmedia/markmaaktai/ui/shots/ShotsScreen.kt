@@ -127,6 +127,21 @@ fun ShotsScreen(
                 modifier = Modifier.padding(horizontal = 16.dp),
             )
 
+            AnimatedVisibility(visible = state.query.isNotBlank() && state.searchResults == null) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                ) {
+                    PillSpinner(size = 16.dp)
+                    Text(
+                        text = stringResource(R.string.shots_searching),
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+
             AnimatedVisibility(visible = state.isIndexing) {
                 Text(
                     text = stringResource(
@@ -184,7 +199,17 @@ fun ShotsScreen(
                     verticalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
                     items(shots, key = { it.id }) { shot ->
-                        ShotTile(shot = shot, onClick = { viewModel.open(shot.id) })
+                        ShotTile(
+                            shot = shot,
+                            onClick = { viewModel.open(shot.id) },
+                            // Filtering and searching change the grid constantly, and
+                            // without this the tiles teleport into their new places.
+                            modifier = Modifier.animateItem(
+                                fadeInSpec = MarkMotion.fadeSpec(),
+                                fadeOutSpec = MarkMotion.fadeSpec(),
+                                placementSpec = MarkMotion.spatial(),
+                            ),
+                        )
                     }
                 }
             }
@@ -309,9 +334,13 @@ private fun CategoryRow(
 }
 
 @Composable
-private fun ShotTile(shot: ScreenshotEntity, onClick: () -> Unit) {
+private fun ShotTile(
+    shot: ScreenshotEntity,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
     Column(
-        modifier = Modifier
+        modifier = modifier
             .clip(SquircleShape(20.dp))
             .background(MaterialTheme.colorScheme.surfaceContainer)
             .bouncyClickable(onClick = onClick),

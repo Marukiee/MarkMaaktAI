@@ -73,6 +73,11 @@ class WebSearchClient @Inject constructor(
             }
         }
 
+        when (val ddg = searchDuckDuckGo(query, limit)) {
+            is SearchOutcome.Results -> if (ddg.sources.isNotEmpty()) return@withContext ddg
+            is SearchOutcome.Failed -> reasons += "DuckDuckGo: ${ddg.reason}"
+        }
+
         when (val wiki = searchWikipedia(query, limit)) {
             is SearchOutcome.Results -> if (wiki.sources.isNotEmpty()) return@withContext wiki
             is SearchOutcome.Failed -> reasons += "Wikipedia: ${wiki.reason}"
@@ -84,7 +89,81 @@ class WebSearchClient @Inject constructor(
     }
 
     /**
-     * The keyless fallback.
+     * The keyless general search.
+     *
+     * DuckDuckGo's plain HTML endpoint, read with a normal browser user agent. There
+     * is no free general search API without a key, and this is the closest thing: no
+     * account, and it answers questions about the world rather than about an
+     * encyclopedia. It is scraping, so it is best effort. A network DuckDuckGo does
+     * not like answers 403, and the next backend takes over instead of the whole
+     * feature failing.
+     */
+    private fun searchDuckDuckGo(query: String, limit: Int): SearchOutcome {
+        val locale = java.util.Locale.getDefault()
+        val form = okhttp3.FormBody.Builder()
+            .add("q", query)
+            .add("kl", locale.language + "-" + locale.country.lowercase())
+            .build()
+
+        val request = Request.Builder()
+            .url("https://html.duckduckgo.com/html/")
+            .post(form)
+            .header("User-Agent", BROWSER_AGENT)
+            .header("Accept", "text/html,application/xhtml+xml")
+            .header("Accept-Language", locale.toLanguageTag())
+            .build()
+
+        return runCatching {
+            httpClient.newCall(request).execute().use { response ->
+                if (!response.isSuccessful) {
+                    return@use SearchOutcome.Failed("Refused with status " + response.code)
+                }
+                val html = response.body?.string().orEmpty()
+
+                val links = RESULT_BLOCK.findAll(html)
+                    .mapNotNull { match ->
+                        val href = decodeRedirect(match.groupValues[1])
+                        val title = match.groupValues[2].stripHtml().unescape()
+                        if (href.isBlank() || title.isBlank()) null
+                        else WebSource(title = title, url = href, snippet = "")
+                    }
+                    .toMutableList()
+
+                // Snippets sit in their own blocks, in the same order as the links.
+                val snippets = SNIPPET_BLOCK.findAll(html)
+                    .map { it.groupValues[1].stripHtml().unescape() }
+                    .toList()
+                links.indices.forEach { index ->
+                    snippets.getOrNull(index)?.let { links[index] = links[index].copy(snippet = it) }
+                }
+
+                SearchOutcome.Results(links.take(limit))
+            }
+        }.getOrElse { error ->
+            SearchOutcome.Failed(error.message ?: "Could not reach DuckDuckGo")
+        }
+    }
+
+    /** Result links are wrapped in a redirect, with the real target as a parameter. */
+    private fun decodeRedirect(href: String): String {
+        val raw = href.unescape()
+        if (!raw.contains("uddg=")) return if (raw.startsWith("http")) raw else ""
+        val encoded = raw.substringAfter("uddg=").substringBefore("&")
+        return runCatching { java.net.URLDecoder.decode(encoded, "UTF-8") }.getOrDefault("")
+    }
+
+    private fun String.unescape(): String = this
+        .replace("&amp;", "&")
+        .replace("&quot;", "\"")
+        .replace("&#x27;", "'")
+        .replace("&#39;", "'")
+        .replace("&lt;", "<")
+        .replace("&gt;", ">")
+        .replace("&nbsp;", " ")
+        .trim()
+
+    /**
+     * The last resort.
      *
      * Not a web search, and it does not pretend to be one: it is an encyclopedia, so
      * it answers questions about things and not about today. It is here because it
@@ -237,6 +316,20 @@ class WebSearchClient @Inject constructor(
     private companion object {
         const val TAG = "WebSearchClient"
         const val USER_AGENT = "MarkMaaktAI/1.0 (Android)"
+
+        /** DuckDuckGo serves a different page to anything that looks like a bot. */
+        const val BROWSER_AGENT =
+            "Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 (KHTML, like Gecko) " +
+                "Chrome/126.0.0.0 Mobile Safari/537.36"
+
         val HTML_TAG = Regex("<[^>]*>")
+        val RESULT_BLOCK = Regex(
+            "<a rel=\"nofollow\" class=\"result__a\"[^>]*href=\"([^\"]+)\"[^>]*>(.*?)</a>",
+            RegexOption.DOT_MATCHES_ALL,
+        )
+        val SNIPPET_BLOCK = Regex(
+            "<a class=\"result__snippet\"[^>]*>(.*?)</a>",
+            RegexOption.DOT_MATCHES_ALL,
+        )
     }
 }

@@ -11,10 +11,14 @@ import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.slideInVertically
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.Orientation
+import androidx.compose.foundation.gestures.draggable
+import androidx.compose.foundation.gestures.rememberDraggableState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -37,6 +41,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -53,8 +58,6 @@ import androidx.compose.ui.unit.dp
 import nl.markmaaktmedia.markmaaktai.R
 import nl.markmaaktmedia.markmaaktai.ui.components.EdgeGlow
 import nl.markmaaktmedia.markmaaktai.ui.components.MarkIconButton
-import nl.markmaaktmedia.markmaaktai.ui.components.PillBadge
-import nl.markmaaktmedia.markmaaktai.ui.components.PillMark
 import nl.markmaaktmedia.markmaaktai.ui.components.PillSpinner
 import nl.markmaaktmedia.markmaaktai.ui.components.VSpace
 import nl.markmaaktmedia.markmaaktai.ui.components.bouncyClickable
@@ -73,19 +76,30 @@ data class AssistUiState(
     val isListening: Boolean = false,
     val hasScreenContext: Boolean = false,
     val error: String? = null,
+    /**
+     * Bumped every time the sheet is summoned. The entry animation keys off it, so a
+     * second summoning plays the same arrival as the first instead of reusing a
+     * composition that is already on screen.
+     */
+    val showId: Int = 0,
 )
 
 /**
  * The assistant sheet.
  *
- * It has one job and about three seconds to do it. The microphone opens on its own
- * the moment it appears, so pressing the power button and talking is the whole
- * interaction and nothing has to be tapped first.
+ * One job, about three seconds to do it. The microphone opens on its own where the
+ * phone can listen, so pressing the power button and talking is the whole
+ * interaction.
  *
- * The light around the edges of the screen is the state. It comes up as the sheet
- * arrives, holds while the microphone is open or the model is working, and drops away
- * once there is an answer to read. Everything outside the sheet stays see-through:
- * the screen being asked about is the context, and covering it would defeat the point.
+ * The light around the edges of the screen carries the state, which is why the window
+ * takes the full display: clipped to the sheet it would only glow along the bottom.
+ * It holds while the microphone is open or the model is working and drops away once
+ * there is an answer to read. Everything outside the sheet stays see-through, because
+ * the screen being asked about is the context.
+ *
+ * Dragging the sheet upwards opens the full app. That replaced a small button in the
+ * corner: the gesture is the one people try anyway, and the corner is better spent on
+ * the single control that closes.
  */
 @Composable
 fun AssistOverlay(
@@ -98,13 +112,16 @@ fun AssistOverlay(
     modifier: Modifier = Modifier,
 ) {
     var visible by remember { mutableStateOf(false) }
-    LaunchedEffect(Unit) { visible = true }
+    LaunchedEffect(state.showId) {
+        visible = false
+        visible = true
+    }
 
     val busy = state.isAnswering || state.isListening
 
     val scrimAlpha by animateFloatAsState(
-        targetValue = if (visible) 0.42f else 0f,
-        animationSpec = tween(durationMillis = 320, easing = LinearEasing),
+        targetValue = if (visible) 0.38f else 0f,
+        animationSpec = tween(durationMillis = 340, easing = LinearEasing),
         label = "scrim",
     )
 
@@ -114,75 +131,61 @@ fun AssistOverlay(
             .background(Color.Black.copy(alpha = scrimAlpha))
             .bouncyClickable(role = null, pressedScale = 1f, onClick = onClose),
     ) {
-        // The glow sits above the scrim and below the sheet, so it lights the edges of
-        // whatever app is behind rather than the sheet itself.
         EdgeGlow(
             active = visible,
-            intensity = if (busy) 1f else 0.5f,
+            intensity = if (busy) 1f else 0.55f,
             modifier = Modifier.fillMaxSize(),
         )
 
-        AnimatedVisibility(
-            visible = visible,
-            enter = slideInVertically(animationSpec = MarkMotion.spatial()) { it } + fadeIn(),
-            modifier = Modifier.align(Alignment.BottomCenter),
+        Column(
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .navigationBarsPadding()
+                .imePadding()
+                .padding(horizontal = 10.dp, vertical = 10.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            Column(
-                modifier = Modifier
-                    .padding(horizontal = 8.dp, vertical = 8.dp)
-                    .clip(SquircleShape(38.dp))
-                    .background(MaterialTheme.colorScheme.surfaceContainerLow)
-                    .navigationBarsPadding()
-                    .imePadding()
-                    .padding(horizontal = 20.dp, vertical = 18.dp),
+            // The context badge is its own pill above the sheet, so it reads as a
+            // statement about the screen rather than as a subtitle of the app name.
+            AnimatedVisibility(
+                visible = visible && state.hasScreenContext,
+                enter = scaleIn(initialScale = 0.85f, animationSpec = MarkMotion.springy()) + fadeIn(),
+                exit = fadeOut(),
             ) {
-                AssistHeader(
-                    busy = state.isAnswering,
-                    hasScreenContext = state.hasScreenContext,
-                    onOpenApp = onOpenApp,
-                    onClose = onClose,
-                )
-
-                AnimatedVisibility(
-                    visible = state.askedQuestion.isNotBlank(),
-                    enter = expandVertically(animationSpec = MarkMotion.sizeSpring()) + fadeIn(),
-                    exit = shrinkVertically(animationSpec = MarkMotion.sizeSpring()) + fadeOut(),
+                Row(
+                    modifier = Modifier
+                        .padding(bottom = 10.dp)
+                        .clip(PillShape)
+                        .background(MaterialTheme.colorScheme.surfaceContainerHigh)
+                        .padding(horizontal = 14.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
-                    Column {
-                        VSpace(16)
-                        Text(
-                            text = state.askedQuestion,
-                            style = MaterialTheme.typography.titleMedium,
-                            color = MaterialTheme.colorScheme.primary,
-                        )
-                    }
+                    Icon(
+                        painter = MarkIcons.Sparkle,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(15.dp),
+                    )
+                    Text(
+                        text = stringResource(R.string.assist_title),
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurface,
+                    )
                 }
+            }
 
-                AnimatedVisibility(
-                    visible = state.answer.isNotBlank() || state.error != null,
-                    enter = expandVertically(animationSpec = MarkMotion.sizeSpring()) + fadeIn(),
-                    exit = shrinkVertically(animationSpec = MarkMotion.sizeSpring()) + fadeOut(),
-                ) {
-                    Column {
-                        VSpace(10)
-                        Text(
-                            text = state.error ?: state.answer,
-                            style = MaterialTheme.typography.bodyLarge,
-                            color = if (state.error != null) MaterialTheme.colorScheme.error
-                            else MaterialTheme.colorScheme.onSurface,
-                            modifier = Modifier
-                                .heightIn(max = 300.dp)
-                                .verticalScroll(rememberScrollState()),
-                        )
-                    }
-                }
-
-                VSpace(18)
-                AssistInput(
+            AnimatedVisibility(
+                visible = visible,
+                enter = slideInVertically(animationSpec = MarkMotion.spatial()) { it } + fadeIn(),
+            ) {
+                AssistSheet(
                     state = state,
                     onQueryChange = onQueryChange,
                     onAsk = onAsk,
                     onDictate = onDictate,
+                    onOpenApp = onOpenApp,
+                    onClose = onClose,
                 )
             }
         }
@@ -190,47 +193,97 @@ fun AssistOverlay(
 }
 
 @Composable
-private fun AssistHeader(
-    busy: Boolean,
-    hasScreenContext: Boolean,
+private fun AssistSheet(
+    state: AssistUiState,
+    onQueryChange: (String) -> Unit,
+    onAsk: () -> Unit,
+    onDictate: () -> Unit,
     onOpenApp: () -> Unit,
     onClose: () -> Unit,
 ) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
-    ) {
-        if (busy) PillSpinner(size = 26.dp) else PillMark(size = 26.dp)
+    var dragged by remember { mutableFloatStateOf(0f) }
 
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = stringResource(R.string.assist_title),
-                style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.onSurface,
+    Column(
+        modifier = Modifier
+            .clip(SquircleShape(38.dp))
+            .background(MaterialTheme.colorScheme.surfaceContainerLow)
+            .draggable(
+                orientation = Orientation.Vertical,
+                state = rememberDraggableState { delta -> dragged += delta },
+                onDragStopped = {
+                    // Up far enough means "give me the whole app". Anything else is a
+                    // stray touch and is simply forgotten.
+                    if (dragged < OpenAppThreshold) onOpenApp()
+                    dragged = 0f
+                },
             )
-            AnimatedVisibility(visible = hasScreenContext) {
+            .padding(horizontal = 20.dp, vertical = 14.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Box(
+            modifier = Modifier
+                .width(38.dp)
+                .height(4.dp)
+                .clip(PillShape)
+                .background(MaterialTheme.colorScheme.outlineVariant)
+        )
+
+        VSpace(12)
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            AnimatedVisibility(visible = state.isAnswering) {
+                Row {
+                    PillSpinner(size = 20.dp)
+                    androidx.compose.foundation.layout.Spacer(Modifier.width(10.dp))
+                }
+            }
+            Text(
+                text = state.askedQuestion.ifBlank { stringResource(R.string.assist_ready) },
+                style = MaterialTheme.typography.titleMedium,
+                color = if (state.askedQuestion.isBlank()) {
+                    MaterialTheme.colorScheme.onSurfaceVariant
+                } else {
+                    MaterialTheme.colorScheme.onSurface
+                },
+                modifier = Modifier.weight(1f),
+            )
+            MarkIconButton(
+                icon = MarkIcons.Close,
+                contentDescription = stringResource(R.string.assist_close),
+                onClick = onClose,
+                size = 36,
+                iconSize = 17,
+            )
+        }
+
+        AnimatedVisibility(
+            visible = state.answer.isNotBlank() || state.error != null,
+            enter = expandVertically(animationSpec = MarkMotion.sizeSpring()) + fadeIn(),
+            exit = shrinkVertically(animationSpec = MarkMotion.sizeSpring()) + fadeOut(),
+        ) {
+            Column(modifier = Modifier.fillMaxWidth()) {
+                VSpace(10)
                 Text(
-                    text = stringResource(R.string.assist_screen_context),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    text = state.error ?: state.answer,
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = if (state.error != null) MaterialTheme.colorScheme.error
+                    else MaterialTheme.colorScheme.onSurface,
+                    modifier = Modifier
+                        .heightIn(max = 300.dp)
+                        .verticalScroll(rememberScrollState()),
                 )
             }
         }
 
-        MarkIconButton(
-            icon = MarkIcons.OpenInNew,
-            contentDescription = stringResource(R.string.assist_open_app),
-            onClick = onOpenApp,
-            size = 38,
-            iconSize = 18,
-        )
-        MarkIconButton(
-            icon = MarkIcons.Close,
-            contentDescription = stringResource(R.string.assist_close),
-            onClick = onClose,
-            size = 38,
-            iconSize = 18,
+        VSpace(16)
+        AssistInput(
+            state = state,
+            onQueryChange = onQueryChange,
+            onAsk = onAsk,
+            onDictate = onDictate,
         )
     }
 }
@@ -304,9 +357,9 @@ private fun AssistInput(
 /**
  * The bars that stand in for a voice while the microphone is open.
  *
- * Each bar runs on its own period, and the periods are picked so no two line up for a
- * long time. Bars that rise and fall in step read as a progress animation; bars that
- * drift out of phase read as something responding to sound.
+ * Each bar runs on its own period, picked so no two line up for a long time. Bars
+ * that rise in step read as a progress animation; bars that drift out of phase read
+ * as something responding to sound.
  */
 @Composable
 private fun ListeningWave(modifier: Modifier = Modifier) {
@@ -346,3 +399,6 @@ private fun ListeningWave(modifier: Modifier = Modifier) {
         }
     }
 }
+
+/** Drag distance, in pixels, that counts as asking for the full app. */
+private const val OpenAppThreshold = -120f

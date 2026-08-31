@@ -124,7 +124,7 @@
     <string name="settings_notification_access">Toegang tot meldingen</string>
     <string name="settings_notification_access_desc">Nodig om binnenkomende berichten te lezen en samen te vatten</string>
     <string name="settings_battery">Batterijoptimalisatie negeren</string>
-    <string name="settings_battery_desc">Houdt de lezer in leven op Sony Xperia en GrapheneOS</string>
+    <string name="settings_battery_desc">Voorkomt dat Android de lezer op de achtergrond stopzet</string>
     <string name="settings_assistant">Standaardassistent</string>
     <string name="settings_assistant_desc">Open MarkMaaktAI met de aan-uitknop of het assistentgebaar</string>
     <string name="settings_min_words">Negeer berichten korter dan</string>
@@ -160,7 +160,7 @@
     <string name="onboarding_notifications_title">Je meldingen lezen</string>
     <string name="onboarding_notifications_body">Geef toegang tot meldingen zodat korte reeksen berichten een rustige samenvatting worden.</string>
     <string name="onboarding_battery_title">Blijf draaien op de achtergrond</string>
-    <string name="onboarding_battery_body">Sony Xperia en GrapheneOS zijn streng voor achtergrond-apps. Batterijoptimalisatie uitzetten houdt de lezer aan.</string>
+    <string name="onboarding_battery_body">Android is streng voor achtergrond-apps, en het ene toestel meer dan het andere. Batterijoptimalisatie uitzetten houdt de meldingenlezer aan.</string>
     <string name="onboarding_assistant_title">Vervang de assistent</string>
     <string name="onboarding_assistant_body">Stel MarkMaaktAI in als standaardassistent om het met de aan-uitknop of een hoekveeg te openen.</string>
     <string name="onboarding_model_title">Kies een model</string>
@@ -206,7 +206,7 @@
     <string name="help_temperature">Laag houdt antwoorden voorspelbaar, hoog laat het model afdwalen. Rond 0,7 werkt voor de meeste dingen.</string>
     <string name="help_max_tokens">De bovengrens voor hoe lang een antwoord mag worden. Langer duurt langer en kost meer geheugen.</string>
     <string name="help_gpu">Sneller op een Snapdragon 8 Gen 3 of Tensor G4. Zet het uit als antwoorden onzin worden of de app afsluit.</string>
-    <string name="help_battery">Android kan de meldingenlezer stoppen om stroom te sparen. Dit zet die uitzondering aan, en dat houdt het werkend op Sony en GrapheneOS.</string>
+    <string name="help_battery">Android stopt achtergrond-apps om stroom te sparen, en hoe streng verschilt per toestel. Deze uitzondering houdt de meldingenlezer overal draaiend.</string>
     <string name="help_assistant">Opent het systeemscherm voor de standaardassistent. Kies daar MarkMaaktAI om hem met de aan-uitknop te openen.</string>
     <string name="help_min_words">Korte antwoorden als oke of dank je zijn nooit een samenvatting waard, dus alles korter dan dit aantal woorden wordt genegeerd.</string>
     <string name="help_cluster_size">Er wordt pas samengevat als er zoveel berichten kort na elkaar binnenkomen. Dat voorkomt dat het model bij elk los bericht aangaat.</string>
@@ -258,4 +258,6 @@
     <string name="chat_pin">Bovenaan vastzetten</string>
     <string name="chat_unpin">Losmaken</string>
     <string name="chat_conversation_actions">Meer voor dit gesprek</string>
+    <string name="assist_ready">Wat kan ik doen?</string>
+    <string name="shots_searching">Aan het zoeken</string>
 </resources>

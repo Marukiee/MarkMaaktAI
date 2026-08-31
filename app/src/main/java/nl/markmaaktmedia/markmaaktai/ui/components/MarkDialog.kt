@@ -58,8 +58,8 @@ fun MarkDialog(
     body: String? = null,
     dismissOnOutsideTap: Boolean = true,
     actions: @Composable () -> Unit = {},
-    /** The one that closes or confirms. Always gets its own full width row. */
-    primaryAction: (@Composable () -> Unit)? = null,
+    /** Spoken label for the corner close button. */
+    closeLabel: String = "",
     content: (@Composable () -> Unit)? = null,
 ) {
     var shown by remember { mutableStateOf(false) }
@@ -94,9 +94,30 @@ fun MarkDialog(
                 }
                 .clip(SquircleShape(32.dp))
                 .background(MaterialTheme.colorScheme.surfaceContainerHigh)
-                .padding(24.dp),
+                .padding(start = 24.dp, end = 12.dp, top = 12.dp, bottom = 24.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
+            /*
+             * Closing lives in the corner, not in the button row.
+             *
+             * It is the one action every dialog has, so giving it a pill next to the
+             * ones that actually do something made the row longer and the real choices
+             * harder to pick out. In the corner it is always in the same place and
+             * never competes for width.
+             */
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.End,
+            ) {
+                MarkIconButton(
+                    icon = MarkIcons.Close,
+                    contentDescription = closeLabel,
+                    onClick = onDismiss,
+                    size = 34,
+                    iconSize = 17,
+                )
+            }
+
             if (icon != null) {
                 Box(
                     modifier = Modifier
@@ -112,7 +133,7 @@ fun MarkDialog(
                         modifier = Modifier.size(24.dp),
                     )
                 }
-                VSpace(16)
+                VSpace(14)
             }
 
             Text(
@@ -150,10 +171,6 @@ fun MarkDialog(
             ) {
                 actions()
             }
-            if (primaryAction != null) {
-                VSpace(10)
-                Box(modifier = Modifier.fillMaxWidth()) { primaryAction() }
-            }
         }
     }
 }
@@ -183,7 +200,7 @@ fun MarkErrorDialog(
         icon = MarkIcons.Error,
         iconTint = MaterialTheme.colorScheme.error,
         onDismiss = onDismiss,
-        primaryAction = { PrimaryPillButton(label = confirmLabel, onClick = onDismiss) },
+        closeLabel = confirmLabel,
         actions = {
             SecondaryPillButton(
                 label = copyLabel,
@@ -193,7 +210,7 @@ fun MarkErrorDialog(
                 },
             )
             if (retryLabel != null && onRetry != null) {
-                SecondaryPillButton(
+                PrimaryPillButton(
                     label = retryLabel,
                     icon = MarkIcons.Refresh,
                     onClick = { onDismiss(); onRetry() },
@@ -220,6 +237,7 @@ fun MarkConfirmDialog(
         icon = if (destructive) MarkIcons.Delete else MarkIcons.Info,
         iconTint = if (destructive) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
         onDismiss = onDismiss,
+        closeLabel = cancelLabel,
         actions = {
             SecondaryPillButton(label = cancelLabel, onClick = onDismiss)
             PrimaryPillButton(

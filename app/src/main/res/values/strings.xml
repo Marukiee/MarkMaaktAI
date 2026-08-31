@@ -131,7 +131,7 @@
     <string name="settings_notification_access">Notification access</string>
     <string name="settings_notification_access_desc">Needed to read and summarise incoming messages</string>
     <string name="settings_battery">Ignore battery optimisation</string>
-    <string name="settings_battery_desc">Keeps the reader alive on Sony Xperia and GrapheneOS</string>
+    <string name="settings_battery_desc">Stops Android from shutting the reader down in the background</string>
     <string name="settings_assistant">Default assistant</string>
     <string name="settings_assistant_desc">Open MarkMaaktAI with the power button or the assist gesture</string>
     <string name="settings_min_words">Ignore messages shorter than</string>
@@ -169,7 +169,7 @@
     <string name="onboarding_notifications_title">Read your notifications</string>
     <string name="onboarding_notifications_body">Grant notification access so short bursts of messages can be turned into one calm summary.</string>
     <string name="onboarding_battery_title">Stay alive in the background</string>
-    <string name="onboarding_battery_body">Sony Xperia and GrapheneOS are strict about background apps. Turning off battery optimisation keeps the reader running.</string>
+    <string name="onboarding_battery_body">Android is strict about background apps, and some phones more than others. Turning off battery optimisation keeps the notification reader running.</string>
     <string name="onboarding_assistant_title">Replace the assistant</string>
     <string name="onboarding_assistant_body">Set MarkMaaktAI as your default assistant to open it with the power button or the corner swipe.</string>
     <string name="onboarding_model_title">Pick a model</string>
@@ -219,7 +219,7 @@
     <string name="help_temperature">Low keeps answers predictable, high lets the model wander. Around 0.7 suits most things.</string>
     <string name="help_max_tokens">The ceiling on how long an answer may get. Longer answers take longer to write and use more memory.</string>
     <string name="help_gpu">Faster on a Snapdragon 8 Gen 3 or a Tensor G4. Turn it off if answers come out garbled or the app closes on you.</string>
-    <string name="help_battery">Android may stop the notification reader to save power. This exempts it, which is what keeps the feature working on Sony and GrapheneOS.</string>
+    <string name="help_battery">Android stops background apps to save power, and how strictly it does that differs from phone to phone. This exemption is what keeps the notification reader running on all of them.</string>
     <string name="help_assistant">Opens the system screen for picking a default assistant. Choose MarkMaaktAI there to reach it with the power button.</string>
     <string name="help_min_words">Short replies like ok or thanks are never worth a summary, so anything under this many words is ignored.</string>
     <string name="help_cluster_size">A summary is only written once this many messages arrive close together, which is what keeps the model from running on every single message.</string>
@@ -272,4 +272,6 @@
     <string name="chat_pin">Pin to the top</string>
     <string name="chat_unpin">Unpin</string>
     <string name="chat_conversation_actions">More for this conversation</string>
+    <string name="assist_ready">What can I do?</string>
+    <string name="shots_searching">Searching</string>
 </resources>
