@@ -30,6 +30,8 @@ import nl.markmaaktmedia.markmaaktai.R
 import nl.markmaaktmedia.markmaaktai.ui.chat.ChatScreen
 import nl.markmaaktmedia.markmaaktai.ui.components.PillNavItem
 import nl.markmaaktmedia.markmaaktai.ui.components.PillNavigationBar
+import nl.markmaaktmedia.markmaaktai.ui.components.predictiveBack
+import nl.markmaaktmedia.markmaaktai.ui.components.rememberPredictiveBack
 import nl.markmaaktmedia.markmaaktai.ui.digest.DigestScreen
 import nl.markmaaktmedia.markmaaktai.ui.digest.DigestViewModel
 import nl.markmaaktmedia.markmaaktai.ui.models.ModelsScreen
@@ -89,11 +91,15 @@ fun MarkNavHost(
      * tab other than chat returns to chat, and only from chat does back actually exit.
      * Without this, back on the settings tab dropped straight out of the app, which
      * reads as a crash rather than as navigation.
+     *
+     * Both are predictive, so the screen follows the finger and shows what is behind
+     * it before the gesture commits.
      */
-    androidx.activity.compose.BackHandler(enabled = modelsOpen) { modelsOpen = false }
-    androidx.activity.compose.BackHandler(enabled = !modelsOpen && tab != MarkTab.Chat) {
+    val modelsBack = rememberPredictiveBack(enabled = modelsOpen) { modelsOpen = false }
+    val tabBack = rememberPredictiveBack(enabled = !modelsOpen && tab != MarkTab.Chat) {
         tab = MarkTab.Chat
     }
+    val backState = if (modelsOpen) modelsBack else tabBack
 
     Surface(
         modifier = modifier.fillMaxSize(),
@@ -126,6 +132,7 @@ fun MarkNavHost(
                 androidx.compose.foundation.layout.Column(
                     modifier = Modifier
                         .fillMaxSize()
+                        .predictiveBack(backState)
                         .statusBarsPadding(),
                 ) {
                     // Above everything, on every tab. An update the user cannot see is

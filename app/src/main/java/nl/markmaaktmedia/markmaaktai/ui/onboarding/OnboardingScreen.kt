@@ -2,7 +2,6 @@ package nl.markmaaktmedia.markmaaktai.ui.onboarding
 
 import android.Manifest
 import android.net.Uri
-import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
@@ -49,6 +48,8 @@ import nl.markmaaktmedia.markmaaktai.ui.components.PillMark
 import nl.markmaaktmedia.markmaaktai.ui.components.PrimaryPillButton
 import nl.markmaaktmedia.markmaaktai.ui.components.SecondaryPillButton
 import nl.markmaaktmedia.markmaaktai.ui.components.VSpace
+import nl.markmaaktmedia.markmaaktai.ui.components.predictiveBack
+import nl.markmaaktmedia.markmaaktai.ui.components.rememberPredictiveBack
 import nl.markmaaktmedia.markmaaktai.ui.components.bouncyClickable
 import nl.markmaaktmedia.markmaaktai.ui.models.ModelsViewModel
 import nl.markmaaktmedia.markmaaktai.ui.models.formatSize
@@ -125,11 +126,12 @@ fun OnboardingScreen(
     // The system back gesture walks the pages, and only leaves once there is nowhere
     // left to go back to. Dropping straight out of onboarding on the first back press
     // loses whatever was set up on the way in.
-    BackHandler(enabled = step > 0) { goBack() }
+    val backState = rememberPredictiveBack(enabled = step > 0) { goBack() }
 
     Column(
         modifier = modifier
             .fillMaxSize()
+            .predictiveBack(backState)
             .background(MaterialTheme.colorScheme.surface)
             .systemBarsPadding(),
     ) {

@@ -1,6 +1,5 @@
 package nl.markmaaktmedia.markmaaktai.ui.settings
 
-import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -42,6 +41,8 @@ import nl.markmaaktmedia.markmaaktai.data.prefs.ThemeMode
 import nl.markmaaktmedia.markmaaktai.ui.components.GroupedRow
 import nl.markmaaktmedia.markmaaktai.ui.components.MarkIconButton
 import nl.markmaaktmedia.markmaaktai.ui.components.SettingsGroup
+import nl.markmaaktmedia.markmaaktai.ui.components.predictiveBack
+import nl.markmaaktmedia.markmaaktai.ui.components.rememberPredictiveBack
 import nl.markmaaktmedia.markmaaktai.ui.theme.MarkIcons
 import nl.markmaaktmedia.markmaaktai.ui.update.UpdateCard
 
@@ -87,7 +88,11 @@ fun SettingsScreen(
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
 
-    BackHandler(enabled = page != SettingsPage.Root) { page = SettingsPage.Root }
+    // The sub pages are a hierarchy, so back should show the list underneath while
+    // the finger is still moving.
+    val backState = rememberPredictiveBack(enabled = page != SettingsPage.Root) {
+        page = SettingsPage.Root
+    }
 
     val crashReport by viewModel.crashReport.collectAsStateWithLifecycle()
     crashReport?.let { report ->
@@ -119,7 +124,9 @@ fun SettingsScreen(
                 .togetherWith(slideOutHorizontally { -it / 3 * direction } + fadeOut())
         },
         label = "settingsPage",
-        modifier = modifier.fillMaxSize(),
+        modifier = modifier
+            .fillMaxSize()
+            .predictiveBack(backState),
     ) { current ->
         when (current) {
             SettingsPage.Root -> SettingsRoot(
