@@ -271,4 +271,7 @@
     <string name="settings_models_summary">Download of kies het model dat antwoordt</string>
     <string name="vision_needed_title">Deze foto vraagt een vision-model</string>
     <string name="vision_needed_body">Er staat geen tekst in om te lezen, en er is niets geïnstalleerd dat naar plaatjes kan kijken. Download FastVLM bij Modellen en probeer het opnieuw.</string>
+    <string name="chat_edit_message">Dit bericht aanpassen</string>
+    <string name="chat_previous_version">Vorige versie</string>
+    <string name="chat_next_version">Volgende versie</string>
 </resources>

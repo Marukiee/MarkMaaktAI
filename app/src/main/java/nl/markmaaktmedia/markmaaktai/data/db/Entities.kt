@@ -15,6 +15,15 @@ data class ConversationEntity(
     val createdAt: Long,
     val updatedAt: Long,
     val pinned: Boolean = false,
+    /**
+     * The tip of the branch currently on screen.
+     *
+     * A thread is a tree once a message can be edited, and every edit adds a sibling
+     * rather than replacing what was there. This records which way through the tree
+     * the user is looking, so switching between two versions of a question brings back
+     * the whole conversation that followed each one.
+     */
+    val activeLeafId: Long? = null,
 )
 
 @Entity(
@@ -27,11 +36,19 @@ data class ConversationEntity(
             onDelete = ForeignKey.CASCADE,
         )
     ],
-    indices = [Index("conversationId"), Index("createdAt")],
+    indices = [Index("conversationId"), Index("createdAt"), Index("parentId")],
 )
 data class MessageEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
     val conversationId: Long,
+    /**
+     * The message this one follows, or null for the first in a thread.
+     *
+     * Two messages sharing a parent are alternative versions of the same turn. That
+     * is the whole of the branching model: no separate branch table, no copying of
+     * the messages that came before.
+     */
+    val parentId: Long? = null,
     /** "user", "assistant" or "system". */
     val role: String,
     val content: String,

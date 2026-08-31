@@ -10,6 +10,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -54,6 +55,13 @@ data class ChatUiState(
     val engineState: EngineState = EngineState.NoModel,
 )
 
+/** Where a message sits among the other versions of its turn. */
+data class VariantPosition(
+    val index: Int,
+    val total: Int,
+    val siblingIds: List<Long>,
+)
+
 /** The step the answer is on, so the status line can say something true. */
 enum class WorkStage { Idle, Searching, ReadingPhone, LoadingModel, Thinking }
 
@@ -78,9 +86,36 @@ class ChatViewModel @Inject constructor(
     val messages: StateFlow<List<MessageEntity>> = conversationId
         .flatMapLatest { id ->
             if (id == 0L) kotlinx.coroutines.flow.flowOf(emptyList())
-            else chatRepository.observeMessages(id)
+            else chatRepository.observeThread(id)
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    /**
+     * Which version of each turn is on screen, and how many there are.
+     *
+     * Recomputed whenever the branch changes, and only for the messages actually
+     * shown, so the arrows know what to say without the transcript carrying the whole
+     * tree around with it.
+     */
+    val variants: StateFlow<Map<Long, VariantPosition>> = messages
+        .map { thread ->
+            buildMap {
+                thread.filter { it.role == ChatRepository.ROLE_USER }.forEach { message ->
+                    val siblings = chatRepository.variantsOf(message)
+                    if (siblings.size > 1) {
+                        put(
+                            message.id,
+                            VariantPosition(
+                                index = siblings.indexOfFirst { it.id == message.id },
+                                total = siblings.size,
+                                siblingIds = siblings.map { it.id },
+                            ),
+                        )
+                    }
+                }
+            }
+        }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyMap())
 
     val conversations: StateFlow<List<ConversationEntity>> = chatRepository.observeConversations()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
@@ -184,6 +219,28 @@ class ChatViewModel @Inject constructor(
         if (question.isNotBlank()) send(question)
     }
 
+    /**
+     * Replaces a question with a reworded one, keeping the original.
+     *
+     * The edit is a new version of that turn hanging off the same parent, so the old
+     * question and everything it produced stay where they were and can be stepped back
+     * to with the arrows.
+     */
+    fun editMessage(message: MessageEntity, newText: String) {
+        val text = newText.trim()
+        if (text.isBlank() || _uiState.value.isGenerating) return
+        generationJob = viewModelScope.launch {
+            runAnswer(text, message.imagePath, parentOverride = message.parentId, isEdit = true)
+        }
+    }
+
+    fun showVariant(messageId: Long) {
+        viewModelScope.launch {
+            val message = chatRepository.messageById(conversationId.value, messageId) ?: return@launch
+            chatRepository.switchToVariant(message)
+        }
+    }
+
     fun send(prefilled: String? = null) {
         val state = _uiState.value
         val question = (prefilled ?: state.input).trim()
@@ -201,7 +258,13 @@ class ChatViewModel @Inject constructor(
         _uiState.update { it.copy(isGenerating = false, stage = WorkStage.Idle) }
     }
 
-    private suspend fun runAnswer(question: String, attachmentPath: String?) {
+    private suspend fun runAnswer(
+        question: String,
+        attachmentPath: String?,
+        /** Set when editing, so the new turn hangs off the old one's parent. */
+        parentOverride: Long? = null,
+        isEdit: Boolean = parentOverride != null,
+    ) {
         val id = conversationId.value.takeIf { it != 0L } ?: chatRepository.createConversation().also {
             conversationId.value = it
             _uiState.update { state -> state.copy(conversationId = it) }
@@ -216,10 +279,10 @@ class ChatViewModel @Inject constructor(
                 lastQuestion = question,
             )
         }
-        chatRepository.addUserMessage(id, question, attachmentPath)
+        val parent = if (isEdit) parentOverride else chatRepository.currentLeafId(id)
+        val userMessageId = chatRepository.addUserMessage(id, question, attachmentPath, parent)
 
-        val history = chatRepository.history(id)
-            .dropLast(1)
+        val history = chatRepository.historyBefore(id, userMessageId)
             .filter { it.content.isNotBlank() }
             .map { entity ->
                 PromptTurn(
@@ -287,7 +350,7 @@ class ChatViewModel @Inject constructor(
 
         _uiState.update { it.copy(stage = WorkStage.LoadingModel) }
 
-        val assistantId = chatRepository.startAssistantMessage(id)
+        val assistantId = chatRepository.startAssistantMessage(id, userMessageId)
         val builder = StringBuilder()
         var lastPersisted = 0
         var failed = false

@@ -14,7 +14,7 @@ import androidx.room.TypeConverters
         ScreenshotEntity::class,
         ScreenshotFtsEntity::class,
     ],
-    version = 1,
+    version = 2,
     exportSchema = true,
 )
 @TypeConverters(Converters::class)

@@ -80,6 +80,7 @@ fun ChatScreen(
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val messages by viewModel.messages.collectAsStateWithLifecycle()
+    val variants by viewModel.variants.collectAsStateWithLifecycle()
     val conversations by viewModel.conversations.collectAsStateWithLifecycle()
     val context = LocalContext.current
 
@@ -150,6 +151,9 @@ fun ChatScreen(
                                 message = message,
                                 isStreaming = state.isGenerating && message.id == messages.last().id,
                                 onOpenSource = { url -> openUrl(context, url) },
+                                variant = variants[message.id],
+                                onEdit = { text -> viewModel.editMessage(message, text) },
+                                onShowVariant = viewModel::showVariant,
                                 modifier = Modifier.animateItem(
                                     fadeInSpec = MarkMotion.fadeSpec(),
                                     placementSpec = MarkMotion.spatial(),

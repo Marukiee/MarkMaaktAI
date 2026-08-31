@@ -285,4 +285,7 @@
     <string name="settings_models_summary">Download or pick the model that answers</string>
     <string name="vision_needed_title">This photo needs a vision model</string>
     <string name="vision_needed_body">There is no text in it to read, and nothing installed can look at pictures. Download FastVLM under Models and try again.</string>
+    <string name="chat_edit_message">Edit this message</string>
+    <string name="chat_previous_version">Previous version</string>
+    <string name="chat_next_version">Next version</string>
 </resources>

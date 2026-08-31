@@ -32,6 +32,12 @@ interface ConversationDao {
     @Query("UPDATE conversations SET pinned = :pinned WHERE id = :id")
     suspend fun setPinned(id: Long, pinned: Boolean)
 
+    @Query("UPDATE conversations SET activeLeafId = :leafId WHERE id = :id")
+    suspend fun setActiveLeaf(id: Long, leafId: Long?)
+
+    @Query("SELECT * FROM conversations WHERE id = :id")
+    fun observeById(id: Long): Flow<ConversationEntity?>
+
     @Query("DELETE FROM conversations WHERE id = :id")
     suspend fun delete(id: Long)
 }
