@@ -177,7 +177,11 @@ fun SettingsScreen(
                 title = stringResource(R.string.settings_section_about),
                 onBack = { page = SettingsPage.Root },
             ) {
-                AboutSettings(versionName = viewModel.versionName, viewModel = viewModel)
+                AboutSettings(
+                    versionName = viewModel.versionName,
+                    updateState = updateState,
+                    viewModel = viewModel,
+                )
             }
         }
     }

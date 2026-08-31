@@ -103,6 +103,15 @@ Dit is waar de app op beoordeeld wordt. Nooit op afknijpen.
   van 63 MB, omdat MediaPipe, ML Kit en Vosk elk een native library per ABI hebben.
   Gevolg: draait niet op een x86-emulator, wel op elk echt toestel.
 
+## Releasen
+
+- Versie ophogen, `assembleDebug` groen, dan pas `git add -A` en taggen.
+- **Nooit `git add -A` met half af werk in de map.** CI compileert wat er gecommit
+  is, niet wat lokaal toevallig werkte. Zo klapte v1.5.0: de pin-functie zat half in
+  ChatScreen, de iconen en strings nog niet.
+- Na het pushen van een tag: run afwachten met
+  `gh run list --workflow=release.yml` en controleren dat de release er echt staat.
+
 ## Werkwijze
 
 - Fase 1 vragen stellen, fase 2 doorbouwen zonder tussentijds te stoppen.

@@ -268,13 +268,31 @@ fun NotificationSettings(settings: UserSettings, viewModel: SettingsViewModel) {
 }
 
 @Composable
-fun AboutSettings(versionName: String, viewModel: SettingsViewModel) {
+fun AboutSettings(
+    versionName: String,
+    updateState: nl.markmaaktmedia.markmaaktai.update.UpdateState,
+    viewModel: SettingsViewModel,
+) {
     SettingsGroup {
         GroupedRow(index = 0, total = 3, onClick = viewModel::checkForUpdates) {
+            // The check takes a second or two on a slow connection, and without a sign
+            // that it started the row just looks like it ignored the tap.
             ActionRow(
                 title = stringResource(R.string.settings_check_updates),
-                subtitle = stringResource(R.string.settings_version, versionName),
+                subtitle = when (updateState) {
+                    is nl.markmaaktmedia.markmaaktai.update.UpdateState.Checking ->
+                        stringResource(R.string.update_checking)
+
+                    is nl.markmaaktmedia.markmaaktai.update.UpdateState.UpToDate ->
+                        stringResource(R.string.update_up_to_date)
+
+                    is nl.markmaaktmedia.markmaaktai.update.UpdateState.Failed ->
+                        updateState.reason
+
+                    else -> stringResource(R.string.settings_version, versionName)
+                },
                 icon = MarkIcons.Update,
+                busy = updateState is nl.markmaaktmedia.markmaaktai.update.UpdateState.Checking,
                 onClick = viewModel::checkForUpdates,
             )
         }

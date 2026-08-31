@@ -123,6 +123,8 @@ fun ActionRow(
     trailing: String? = null,
     icon: Painter? = null,
     help: String? = null,
+    /** Swaps the chevron for the app's spinner while this row is doing something. */
+    busy: Boolean = false,
     onClick: () -> Unit,
 ) {
     Row(
@@ -165,12 +167,16 @@ fun ActionRow(
                 color = MaterialTheme.colorScheme.primary,
             )
         }
-        Icon(
-            painter = MarkIcons.ChevronRight,
-            contentDescription = null,
-            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.size(18.dp),
-        )
+        if (busy) {
+            nl.markmaaktmedia.markmaaktai.ui.components.PillSpinner(size = 18.dp)
+        } else {
+            Icon(
+                painter = MarkIcons.ChevronRight,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(18.dp),
+            )
+        }
     }
 }
 
