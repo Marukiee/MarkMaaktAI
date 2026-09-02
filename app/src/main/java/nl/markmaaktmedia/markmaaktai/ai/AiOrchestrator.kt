@@ -11,11 +11,13 @@ import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import nl.markmaaktmedia.markmaaktai.ai.prompt.PromptBudget
 import nl.markmaaktmedia.markmaaktai.ai.prompt.PromptBuilder
 import nl.markmaaktmedia.markmaaktai.ai.prompt.PromptContext
 import nl.markmaaktmedia.markmaaktai.ai.prompt.PromptTurn
 import nl.markmaaktmedia.markmaaktai.ai.prompt.StructuredSummary
 import nl.markmaaktmedia.markmaaktai.ai.prompt.SummaryParser
+import nl.markmaaktmedia.markmaaktai.ai.prompt.UrgencyRules
 import nl.markmaaktmedia.markmaaktai.ai.vision.ImageTextExtractor
 import nl.markmaaktmedia.markmaaktai.data.prefs.SettingsRepository
 import java.io.File
@@ -87,16 +89,21 @@ class AiOrchestrator @Inject constructor(
             is PrepareResult.Ready -> Unit
         }
 
+        // Measured against the graph that is now open, not against the setting. The
+        // setting is a wish; the KV cache the .task file was exported with is the law.
+        val budget = PromptBudget.forContext(engine.contextTokens, prefs.maxTokens)
+
         val prompt = PromptBuilder.buildChat(
             history = history,
             question = question,
             context = context.copy(imageText = imageText.ifBlank { context.imageText }),
+            budget = budget,
         )
 
         val request = InferenceRequest(
             prompt = prompt,
             images = if (wantsVision) images else emptyList(),
-            params = prefs.toParams(),
+            params = prefs.toParams().copy(maxTokens = budget.answerTokens),
         )
         emitAll(engine.generate(request))
     }
@@ -160,9 +167,11 @@ class AiOrchestrator @Inject constructor(
             is PrepareResult.Ready -> Unit
         }
 
+        val trimmed = prompt.trimToBudget(params.maxTokens)
+
         val builder = StringBuilder()
         var failure: String? = null
-        engine.generate(InferenceRequest(prompt = prompt, params = params))
+        engine.generate(InferenceRequest(prompt = trimmed, params = params))
             .onEach { event ->
                 when (event) {
                     is InferenceEvent.Token -> builder.append(event.text)
@@ -176,9 +185,30 @@ class AiOrchestrator @Inject constructor(
             ?: Result.success(builder.toString().trim())
     }
 
+    /**
+     * Summarises a burst, then checks the verdict rather than trusting it.
+     *
+     * The model may confirm that something is urgent, never decide it on its own.
+     * Left to itself it marks roughly everything urgent, and a badge that is always
+     * on is the same as no badge at all.
+     */
     suspend fun summarise(appLabel: String, messages: List<String>): Result<StructuredSummary> =
-        complete(PromptBuilder.buildSummary(appLabel, messages), maxTokens = 320)
+        complete(PromptBuilder.buildSummary(appLabel, messages), maxTokens = SUMMARY_TOKENS)
             .map { SummaryParser.parse(it) }
+
+    /** Applies the urgency rule to a parsed summary, with the source text to check against. */
+    fun confirmUrgency(
+        summary: StructuredSummary,
+        packageName: String,
+        messages: List<String>,
+    ): StructuredSummary = summary.copy(
+        isUrgent = UrgencyRules.isUrgent(
+            modelSaidUrgent = summary.isUrgent,
+            packageName = packageName,
+            category = summary.category,
+            text = (messages + summary.summary).joinToString(" "),
+        ),
+    )
 
     suspend fun draftReply(appLabel: String, messages: List<String>): Result<String> =
         complete(PromptBuilder.buildReplyDraft(appLabel, messages), maxTokens = 96)
@@ -236,6 +266,23 @@ class AiOrchestrator @Inject constructor(
                 )
         }
 
+    /**
+     * Last line of defence for the one shot prompts.
+     *
+     * The chat path budgets its context properly. The background prompts are built
+     * from OCR text and notification bodies whose length nobody controls, so they are
+     * cut here rather than coming back empty from a full context.
+     */
+    private fun String.trimToBudget(answerTokens: Int): String {
+        val budget = PromptBudget.forContext(engine.contextTokens, answerTokens)
+        if (length <= budget.promptChars) return this
+        // Keep the head, which holds the instructions, and the tail, which holds the
+        // cue the model answers after.
+        val head = (budget.promptChars * 3) / 4
+        val tail = budget.promptChars - head - ELLIPSIS.length
+        return take(head) + ELLIPSIS + takeLast(tail.coerceAtLeast(0))
+    }
+
     private fun String.isModelFile(): Boolean =
         isNotBlank() && File(this).let { it.exists() && it.length() > 0 }
 
@@ -252,6 +299,11 @@ class AiOrchestrator @Inject constructor(
     private companion object {
         const val TAG = "AiOrchestrator"
         const val NO_MODEL_MESSAGE = "No model has been picked yet"
+
+        /** Room for the JSON object and its fields, and not a word more. */
+        const val SUMMARY_TOKENS = 260
+
+        const val ELLIPSIS = "\n...\n"
     }
 
     /** Enough for a line of visible detail, not an essay. */

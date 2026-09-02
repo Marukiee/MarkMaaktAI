@@ -5,6 +5,8 @@ import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import android.util.Log
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -15,11 +17,13 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 import nl.markmaaktmedia.markmaaktai.ai.AiOrchestrator
 import nl.markmaaktmedia.markmaaktai.ai.EngineState
 import nl.markmaaktmedia.markmaaktai.ai.InferenceEvent
 import nl.markmaaktmedia.markmaaktai.ai.prompt.PromptContext
 import nl.markmaaktmedia.markmaaktai.ai.prompt.PromptTurn
+import nl.markmaaktmedia.markmaaktai.ai.prompt.QuestionRouter
 import nl.markmaaktmedia.markmaaktai.ai.stt.SpeechEvent
 import nl.markmaaktmedia.markmaaktai.ai.stt.SpeechInputManager
 import nl.markmaaktmedia.markmaaktai.data.db.ConversationEntity
@@ -178,12 +182,13 @@ class ChatViewModel @Inject constructor(
         image: Bitmap?,
         photoPlace: String,
     ): String {
-        if (image == null) return question
-        if (photoPlace.isNotBlank()) return "$question $photoPlace"
+        val cleaned = QuestionRouter.searchQuery(question)
+        if (image == null) return cleaned
+        if (photoPlace.isNotBlank()) return "$cleaned $photoPlace"
 
         val described = orchestrator.describeImage(image).getOrNull()?.trim().orEmpty()
-        if (described.isBlank()) return question
-        return "$question ${described.take(MAX_DESCRIPTION_CHARS)}"
+        if (described.isBlank()) return cleaned
+        return "$cleaned ${described.take(MAX_DESCRIPTION_CHARS)}"
     }
 
     fun onInputChange(value: String) {
@@ -275,7 +280,9 @@ class ChatViewModel @Inject constructor(
         val text = newText.trim()
         if (text.isBlank() || _uiState.value.isGenerating) return
         generationJob = viewModelScope.launch {
-            runAnswer(text, message.imagePath, parentOverride = message.parentId, isEdit = true)
+            guarded {
+                runAnswer(text, message.imagePath, parentOverride = message.parentId, isEdit = true)
+            }
         }
     }
 
@@ -293,7 +300,33 @@ class ChatViewModel @Inject constructor(
         if (state.isGenerating) return
 
         generationJob = viewModelScope.launch {
-            runAnswer(question, state.attachmentPath)
+            guarded { runAnswer(question, state.attachmentPath) }
+        }
+    }
+
+    /**
+     * Nothing an answer does is allowed to take the app down.
+     *
+     * A failure here is a network that dropped, a photo that would not decode, or the
+     * native runtime throwing on a prompt it did not like. All three used to reach
+     * `viewModelScope` uncaught, which is a crash, and the report came back as "the AI
+     * crashes on web requests". A dialog and a transcript that still works is the
+     * right answer to every one of them.
+     */
+    private suspend fun guarded(block: suspend () -> Unit) {
+        try {
+            block()
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (error: Throwable) {
+            Log.e(TAG, "Answering failed", error)
+            _uiState.update {
+                it.copy(
+                    isGenerating = false,
+                    stage = WorkStage.Idle,
+                    error = error.message ?: "Something went wrong while answering",
+                )
+            }
         }
     }
 
@@ -353,9 +386,12 @@ class ChatViewModel @Inject constructor(
          */
         val photoPlace = if (attachmentPath != null && settings.current().photoPlaceLookup) {
             _uiState.update { it.copy(stage = WorkStage.Searching) }
-            chatRepository.attachmentLocation(attachmentPath)
-                ?.let { (latitude, longitude) -> placeLookup.describe(latitude, longitude) }
-                .orEmpty()
+            // A geocoder that never answers must not hold up the answer. Without the
+            // place name the question is still answerable, just less precisely.
+            withTimeoutOrNull(PLACE_TIMEOUT_MILLIS) {
+                chatRepository.attachmentLocation(attachmentPath)
+                    ?.let { (latitude, longitude) -> placeLookup.describe(latitude, longitude) }
+            }.orEmpty()
         } else {
             ""
         }
@@ -363,37 +399,50 @@ class ChatViewModel @Inject constructor(
             promptContext = promptContext.copy(photoPlace = photoPlace)
         }
 
-        if (_uiState.value.webSearchEnabled && question.isNotBlank()) {
+        /*
+         * What this question actually needs behind it.
+         *
+         * Everything used to be attached to everything: the phone was searched for
+         * "how fast does the Python at the Efteling go", `python` matched an unrelated
+         * notification, and the model dutifully wove it into the answer. On a 1280
+         * token context an irrelevant block is not merely useless, it pushes out the
+         * one that would have answered the question.
+         */
+        val route = QuestionRouter.route(question, hasImage = bitmap != null)
+
+        if (_uiState.value.webSearchEnabled && route.useWeb && question.isNotBlank()) {
             _uiState.update { it.copy(stage = WorkStage.Searching) }
             val prefs = settings.current()
-            val outcome = searchClient.search(
-                query = searchQueryFor(question, bitmap, photoPlace),
-                limit = prefs.searchResultCount,
-                // Whatever the user typed, and nothing when they typed nothing. The
-                // placeholder in settings is an example address, not a server.
-                searxngUrl = prefs.searxngUrl,
-                braveApiKey = prefs.braveApiKey,
-            )
+            val outcome = runCatching {
+                searchClient.search(
+                    query = searchQueryFor(question, bitmap, photoPlace),
+                    limit = prefs.searchResultCount,
+                    // Whatever the user typed, and nothing when they typed nothing. The
+                    // placeholder in settings is an example address, not a server.
+                    searxngUrl = prefs.searxngUrl,
+                    braveApiKey = prefs.braveApiKey,
+                )
+            }.getOrElse { error ->
+                if (error is CancellationException) throw error
+                SearchOutcome.Failed(error.message ?: "The search could not be reached")
+            }
             when (outcome) {
                 is SearchOutcome.Results -> {
                     sources = outcome.sources
                     promptContext = promptContext.copy(webResults = sources)
                 }
 
+                // The search failing is not the answer failing. It is noted on the
+                // status line, and the model answers from what it has.
                 is SearchOutcome.Failed -> _uiState.update { it.copy(error = outcome.reason) }
             }
         }
 
-        if (_uiState.value.phoneContextEnabled && question.isNotBlank()) {
+        if (_uiState.value.phoneContextEnabled && route.usePhoneContext) {
             _uiState.update { it.copy(stage = WorkStage.ReadingPhone) }
-            // Only pulled in when the question actually matches something. A question
-            // about the weather should not drag yesterday's notifications along.
-            val notificationLines = notificationRepository.search(question, limit = 12)
-                .map { "${it.appLabel}, ${it.title.ifBlank { it.appLabel }}: ${it.body.take(280)}" }
-            val screenshotLines = screenshotRepository.contextFor(question, limit = 4)
-            val combined = notificationLines + screenshotLines
-            if (combined.isNotEmpty()) {
-                promptContext = promptContext.copy(notificationLines = combined)
+            val lines = if (route.wantsRecap) recapLines() else matchingLines(question)
+            if (lines.isNotEmpty()) {
+                promptContext = promptContext.copy(notificationLines = lines)
             }
         }
 
@@ -471,6 +520,39 @@ class ChatViewModel @Inject constructor(
         if (!failed) maybeTitle(id, question)
     }
 
+    /**
+     * Everything from the last day, newest first.
+     *
+     * "Summarise my day" has no words to search on, which is why it used to come back
+     * blank: the full text search found nothing, no context was attached, and the
+     * model was asked to summarise a day it had never been told anything about.
+     * A recap is a question about time, not about a subject.
+     */
+    private suspend fun recapLines(): List<String> {
+        val summaries = notificationRepository.recentSummaries(limit = RECAP_SUMMARIES)
+            .map { "${it.appLabel}: ${it.summary}" }
+        val notifications = notificationRepository.recent(limit = RECAP_NOTIFICATIONS)
+            .map { "${it.appLabel}, ${it.title.ifBlank { it.appLabel }}: ${it.body.take(200)}" }
+
+        // Summaries first: they are already the condensed version, so they survive the
+        // trim, and the raw notifications fill whatever room is left.
+        val lines = (summaries + notifications).distinct()
+
+        // Said plainly, because a model given no context invents a plausible day.
+        return lines.ifEmpty { listOf(NOTHING_CAPTURED) }
+    }
+
+    /** Notifications and screenshots that genuinely match what was asked. */
+    private suspend fun matchingLines(question: String): List<String> {
+        val terms = QuestionRouter.contentTerms(question)
+        if (terms.isEmpty()) return emptyList()
+
+        val notifications = notificationRepository.searchTerms(terms, limit = MATCHED_NOTIFICATIONS)
+            .map { "${it.appLabel}, ${it.title.ifBlank { it.appLabel }}: ${it.body.take(200)}" }
+        val screenshots = screenshotRepository.contextFor(question, limit = MATCHED_SCREENSHOTS)
+        return notifications + screenshots
+    }
+
     private suspend fun finish(
         conversation: Long,
         assistantId: Long,
@@ -535,7 +617,15 @@ class ChatViewModel @Inject constructor(
     }
 
     private companion object {
+        const val TAG = "ChatViewModel"
         const val PERSIST_EVERY_CHARS = 24
+        const val RECAP_SUMMARIES = 8
+        const val RECAP_NOTIFICATIONS = 12
+        const val MATCHED_NOTIFICATIONS = 6
+        const val MATCHED_SCREENSHOTS = 3
+        const val PLACE_TIMEOUT_MILLIS = 8_000L
+        const val NOTHING_CAPTURED =
+            "Nothing was captured on this phone in the last day. Say exactly that."
         const val MAX_DESCRIPTION_CHARS = 180
         const val DEFAULT_TITLE = "New conversation"
         const val DESCRIBE_IMAGE = "Describe what is in this image."

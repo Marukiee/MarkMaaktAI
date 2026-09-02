@@ -26,6 +26,8 @@ data class ShotsUiState(
     val isIndexing: Boolean = false,
     val progress: IndexProgress = IndexProgress(0, 0),
     val searchResults: List<ScreenshotEntity>? = null,
+    /** A query is typed and its results are still on their way. */
+    val isSearching: Boolean = false,
     val openedId: Long? = null,
 )
 
@@ -43,9 +45,8 @@ class ShotsViewModel @Inject constructor(
     /** Everything indexed, filtered by the category chip. Search replaces this list. */
     val shots: StateFlow<List<ScreenshotEntity>> =
         combine(repository.observeAll(), _uiState) { all, state ->
-            state.searchResults ?: state.category?.let { category ->
-                all.filter { it.category == category }
-            } ?: all
+            val base = state.searchResults ?: all
+            state.category?.let { category -> base.filter { it.category == category } } ?: base
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     val indexedCount: StateFlow<Int> = repository.observeCount()
@@ -77,18 +78,27 @@ class ShotsViewModel @Inject constructor(
         }
     }
 
+    /**
+     * Searches as you type, without the grid flashing back to everything in between.
+     *
+     * The results of the previous keystroke stay on screen while the next query runs.
+     * Clearing them first meant every letter went results, whole library, results
+     * again, which is three different grids in a third of a second and reads as a
+     * glitch. Keeping them means a letter only ever takes tiles away or brings them
+     * back, which is a thing the eye can follow.
+     */
     fun onQueryChange(value: String) {
-        _uiState.update { it.copy(query = value) }
         searchJob?.cancel()
         if (value.isBlank()) {
-            _uiState.update { it.copy(searchResults = null) }
+            _uiState.update { it.copy(query = value, searchResults = null, isSearching = false) }
             return
         }
+        _uiState.update { it.copy(query = value, isSearching = true) }
         searchJob = viewModelScope.launch {
             // Short pause so a fast typist does not run a query per keystroke.
             kotlinx.coroutines.delay(220)
             val results = repository.search(value)
-            _uiState.update { it.copy(searchResults = results) }
+            _uiState.update { it.copy(searchResults = results, isSearching = false) }
         }
     }
 
@@ -101,7 +111,9 @@ class ShotsViewModel @Inject constructor(
      */
     fun clearSearch() {
         searchJob?.cancel()
-        _uiState.update { it.copy(query = "", searchResults = null, openedId = null) }
+        _uiState.update {
+            it.copy(query = "", searchResults = null, isSearching = false, openedId = null)
+        }
     }
 
     fun setCategory(category: String?) {

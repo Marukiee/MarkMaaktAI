@@ -84,6 +84,17 @@ interface ScreenshotDao {
     )
     suspend fun search(query: String, limit: Int): List<ScreenshotEntity>
 
+    /**
+     * Every shot the indexer filed under one category.
+     *
+     * Used when a search names a kind of thing rather than a word in it. Searching
+     * "vliegtickets" has to find the boarding pass whose text says gate and PNR and
+     * nothing else, and the category is the only place that connection is written
+     * down.
+     */
+    @Query("SELECT * FROM screenshots WHERE category = :category ORDER BY capturedAt DESC LIMIT :limit")
+    suspend fun byCategory(category: String, limit: Int): List<ScreenshotEntity>
+
     @Transaction
     suspend fun insertWithIndex(screenshot: ScreenshotEntity): Long {
         val id = insert(screenshot)

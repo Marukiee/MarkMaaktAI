@@ -6,8 +6,12 @@ import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.Crossfade
+import androidx.compose.animation.expandVertically
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
@@ -42,14 +46,17 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -138,18 +145,38 @@ fun ShotsScreen(
                 modifier = Modifier.padding(horizontal = 16.dp),
             )
 
-            AnimatedVisibility(visible = state.query.isNotBlank() && state.searchResults == null) {
+            // One line that either counts or spins, crossfading between the two, so
+            // the row does not appear and disappear under the search box.
+            AnimatedVisibility(
+                visible = state.query.isNotBlank(),
+                enter = expandVertically(animationSpec = MarkMotion.sizeSpring()) +
+                    fadeIn(animationSpec = MarkMotion.fadeSpec()),
+                exit = shrinkVertically(animationSpec = MarkMotion.sizeSpring()) +
+                    fadeOut(animationSpec = MarkMotion.fadeSpec()),
+            ) {
                 Row(
                     modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
-                    PillSpinner(size = 16.dp)
-                    Text(
-                        text = stringResource(R.string.shots_searching),
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
+                    AnimatedVisibility(visible = state.isSearching) {
+                        PillSpinner(size = 16.dp)
+                    }
+                    Crossfade(
+                        targetState = if (state.isSearching) null else shots.size,
+                        animationSpec = MarkMotion.fadeSpec(),
+                        label = "shotsCount",
+                    ) { count ->
+                        Text(
+                            text = if (count == null) {
+                                stringResource(R.string.shots_searching)
+                            } else {
+                                pluralStringResource(R.plurals.shots_results, count, count)
+                            },
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
                 }
             }
 
@@ -213,6 +240,11 @@ fun ShotsScreen(
                         ShotTile(
                             shot = shot,
                             onClick = { viewModel.open(shot.id) },
+                            // A tile that survived the query grows into its new place.
+                            // Only while searching: browsing scrolls through hundreds of
+                            // these, and a tile that pops every time it comes back into
+                            // view is the sort of animation that makes an app tiring.
+                            growsIn = state.query.isNotBlank(),
                             // Filtering and searching change the grid constantly, and
                             // without this the tiles teleport into their new places.
                             modifier = Modifier.animateItem(
@@ -352,9 +384,21 @@ private fun ShotTile(
     shot: ScreenshotEntity,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    growsIn: Boolean = false,
 ) {
+    // Runs once for as long as this tile keeps its place in the grid. A tile that was
+    // already there when the query changed keeps its scale and only slides.
+    val scale = remember(shot.id) { Animatable(if (growsIn) EnterScale else 1f) }
+    LaunchedEffect(shot.id) {
+        if (growsIn) scale.animateTo(1f, animationSpec = MarkMotion.springy())
+    }
+
     Column(
         modifier = modifier
+            .graphicsLayer {
+                scaleX = scale.value
+                scaleY = scale.value
+            }
             .clip(SquircleShape(20.dp))
             .background(MaterialTheme.colorScheme.surfaceContainer)
             .bouncyClickable(onClick = onClick),
@@ -521,3 +565,6 @@ private fun openInGallery(context: android.content.Context, uri: String) {
         )
     }
 }
+
+/** How small a tile starts when it joins a set of search results. */
+private const val EnterScale = 0.86f

@@ -293,4 +293,8 @@
     <string name="settings_photo_place">Recognise where a photo was taken</string>
     <string name="settings_photo_place_desc">Uses the coordinates the photo carries</string>
     <string name="help_photo_place">A photo taken on a phone stores the exact spot it was taken. This turns that into a place name, so "where is this?" gets a real answer instead of a guess. Only the coordinates are looked up, never the photo, and only when a photo has them. Android does the lookup where it can, otherwise OpenStreetMap does.</string>
+    <plurals name="shots_results">
+        <item quantity="one">%d screenshot</item>
+        <item quantity="other">%d screenshots</item>
+    </plurals>
 </resources>

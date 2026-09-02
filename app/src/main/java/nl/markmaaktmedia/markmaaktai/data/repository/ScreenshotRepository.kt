@@ -162,8 +162,43 @@ class ScreenshotRepository @Inject constructor(
         gone.size
     }
 
+    /**
+     * Finds screenshots by what someone would call the thing, not by what it says.
+     *
+     * Three passes, best first. The words as typed; then the same words widened by
+     * [SearchVocabulary], which knows that a vliegticket is a screenshot with gate and
+     * vlucht on it; then, when the words name a kind of thing, everything filed under
+     * that category, which catches the boarding pass whose text is nothing but codes.
+     *
+     * Results keep that order and are deduplicated, so an exact hit is never pushed
+     * down the grid by a related one.
+     */
     suspend fun search(query: String, limit: Int = 60): List<ScreenshotEntity> {
-        val match = toMatchQuery(query) ?: return emptyList()
+        val words = toWords(query)
+        if (words.isEmpty()) return emptyList()
+
+        val found = LinkedHashMap<Long, ScreenshotEntity>()
+
+        matching(words, limit).forEach { found[it.id] = it }
+
+        val widened = SearchVocabulary.expand(words)
+        if (found.size < limit && widened.size > words.size) {
+            matching(widened, limit).forEach { found.putIfAbsent(it.id, it) }
+        }
+
+        val category = SearchVocabulary.categoryFor(words)
+        if (found.size < limit && category != null) {
+            runCatching { dao.byCategory(category, limit) }
+                .getOrDefault(emptyList())
+                .forEach { found.putIfAbsent(it.id, it) }
+        }
+
+        return found.values.take(limit)
+    }
+
+    private suspend fun matching(terms: List<String>, limit: Int): List<ScreenshotEntity> {
+        if (terms.isEmpty()) return emptyList()
+        val match = terms.joinToString(" OR ") { "$it*" }
         return runCatching { dao.search(match, limit) }.getOrDefault(emptyList())
     }
 
@@ -291,16 +326,12 @@ class ScreenshotRepository @Inject constructor(
         }
     }
 
-    private fun toMatchQuery(question: String): String? {
-        val words = question.lowercase()
-            .split(NON_WORD)
-            .map { it.trim() }
-            .filter { it.length >= 3 }
-            .distinct()
-            .take(8)
-        if (words.isEmpty()) return null
-        return words.joinToString(" OR ") { "$it*" }
-    }
+    private fun toWords(question: String): List<String> = question.lowercase()
+        .split(NON_WORD)
+        .map { it.trim() }
+        .filter { it.length >= 3 }
+        .distinct()
+        .take(8)
 
     private companion object {
         const val TAG = "ScreenshotRepository"

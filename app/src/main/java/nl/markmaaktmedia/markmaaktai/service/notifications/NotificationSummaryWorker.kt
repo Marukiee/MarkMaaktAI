@@ -69,17 +69,25 @@ class NotificationSummaryWorker @AssistedInject constructor(
         runCatching { setForeground(getForegroundInfo()) }
 
         val appLabel = pending.first().appLabel
-        val lines = pending.map { entity ->
-            val who = entity.title.ifBlank { entity.appLabel }
-            "$who: ${entity.body.take(400)}"
-        }
+        val packageName = pending.first().packageName
+
+        // Deduplicated, because a chat app reposts the whole thread on every new
+        // message and the model would summarise the same line five times over. The
+        // newest are kept: a burst is about what just came in.
+        val lines = pending
+            .map { entity ->
+                val who = entity.title.ifBlank { entity.appLabel }
+                "$who: ${entity.body.replace(WHITESPACE, " ").trim().take(MAX_LINE_CHARS)}"
+            }
+            .distinct()
+            .takeLast(MAX_LINES)
 
         val outcome = orchestrator.summarise(appLabel, lines)
         val structured = outcome.getOrElse {
             // No model yet, or it failed to load. Retrying in a loop would only drain
             // the battery, so the cluster is left pending for the next trigger.
             return Result.success()
-        }
+        }.let { orchestrator.confirmUrgency(it, packageName, lines) }
         if (structured.summary.isBlank()) return Result.success()
 
         val entity = SummaryEntity(
@@ -101,6 +109,12 @@ class NotificationSummaryWorker @AssistedInject constructor(
     }
 
     companion object {
+        private val WHITESPACE = Regex("\\s+")
+
+        /** A burst longer than this is a thread being reposted, not news. */
+        private const val MAX_LINES = 8
+        private const val MAX_LINE_CHARS = 240
+
         private const val NAME_PREFIX = "summary-"
         private const val KEY_CLUSTER = "cluster_key"
         private const val KEY_REPLY = "reply_key"

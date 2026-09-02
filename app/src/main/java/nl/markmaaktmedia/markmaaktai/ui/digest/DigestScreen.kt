@@ -1,7 +1,6 @@
 package nl.markmaaktmedia.markmaaktai.ui.digest
 
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
@@ -26,6 +25,8 @@ import androidx.compose.material3.Snackbar
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -39,6 +40,7 @@ import nl.markmaaktmedia.markmaaktai.data.db.SummaryEntity
 import nl.markmaaktmedia.markmaaktai.ui.components.EmptyState
 import nl.markmaaktmedia.markmaaktai.ui.components.PillBadge
 import nl.markmaaktmedia.markmaaktai.ui.components.SoftDivider
+import nl.markmaaktmedia.markmaaktai.ui.components.SegmentedPillRow
 import nl.markmaaktmedia.markmaaktai.ui.components.SwipeToDelete
 import nl.markmaaktmedia.markmaaktai.ui.components.VSpace
 import nl.markmaaktmedia.markmaaktai.ui.components.bouncyClickable
@@ -88,7 +90,19 @@ fun DigestScreen(
                     verticalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
                     items(summaries, key = { it.id }) { summary ->
-                        SwipeToDelete(item = summary, key = summary.id, onDelete = viewModel::delete) {
+                        // Switching filter is a different list, not a different screen.
+                        // The cards that stay slide to their new place and the rest fade
+                        // out where they were, so the row that survived is followable.
+                        SwipeToDelete(
+                            item = summary,
+                            key = summary.id,
+                            onDelete = viewModel::delete,
+                            modifier = Modifier.animateItem(
+                                fadeInSpec = MarkMotion.fadeSpec(),
+                                fadeOutSpec = MarkMotion.fadeSpec(),
+                                placementSpec = MarkMotion.spatial(),
+                            ),
+                        ) {
                             SummaryCard(
                                 summary = summary,
                                 expanded = state.expandedId == summary.id,
@@ -134,52 +148,31 @@ fun DigestScreen(
     }
 }
 
+/**
+ * All, urgent, unread.
+ *
+ * One pill that travels between the three rather than three chips that each recolour,
+ * so switching reads as a selection moving and not as the row redrawing itself.
+ */
 @Composable
 private fun FilterRow(
     selected: DigestFilter,
     onSelect: (DigestFilter) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Row(
-        modifier = modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        FilterChip(stringResource(R.string.digest_filter_all), selected == DigestFilter.All) {
-            onSelect(DigestFilter.All)
-        }
-        FilterChip(stringResource(R.string.digest_filter_urgent), selected == DigestFilter.Urgent) {
-            onSelect(DigestFilter.Urgent)
-        }
-        FilterChip(stringResource(R.string.digest_filter_unread), selected == DigestFilter.Unread) {
-            onSelect(DigestFilter.Unread)
-        }
-    }
-}
-
-@Composable
-private fun FilterChip(label: String, selected: Boolean, onClick: () -> Unit) {
-    val container by animateColorAsState(
-        targetValue = if (selected) MaterialTheme.colorScheme.primary
-        else MaterialTheme.colorScheme.surfaceContainerHigh,
-        animationSpec = MarkMotion.colourSpec(),
-        label = "filterContainer",
-    )
-    val content by animateColorAsState(
-        targetValue = if (selected) MaterialTheme.colorScheme.onPrimary
-        else MaterialTheme.colorScheme.onSurfaceVariant,
-        animationSpec = MarkMotion.colourSpec(),
-        label = "filterContent",
+    val labels = mapOf(
+        DigestFilter.All to stringResource(R.string.digest_filter_all),
+        DigestFilter.Urgent to stringResource(R.string.digest_filter_urgent),
+        DigestFilter.Unread to stringResource(R.string.digest_filter_unread),
     )
 
-    Box(
-        modifier = Modifier
-            .clip(ChipSquircle)
-            .background(container)
-            .bouncyClickable(onClick = onClick)
-            .padding(horizontal = 16.dp, vertical = 9.dp),
-    ) {
-        Text(text = label, style = MaterialTheme.typography.labelLarge, color = content)
-    }
+    SegmentedPillRow(
+        options = DigestFilter.entries,
+        selected = selected,
+        label = { labels[it].orEmpty() },
+        onSelect = onSelect,
+        modifier = modifier,
+    )
 }
 
 /**
@@ -308,16 +301,30 @@ private fun SummaryCard(
             }
         }
 
+        /*
+         * Closing kept the lines to shrink.
+         *
+         * The view model drops the source messages the moment the card is collapsed,
+         * so the block being animated away had already emptied itself: it went to zero
+         * height in one frame and the shrink then animated nothing. Holding on to the
+         * last lines means the exit has something to close over, which is the whole
+         * difference between the card folding shut and the card blinking shut.
+         */
+        val closing = remember { mutableStateOf(sourceLines) }
+        if (sourceLines.isNotEmpty()) closing.value = sourceLines
+
         AnimatedVisibility(
             visible = expanded && sourceLines.isNotEmpty(),
-            enter = expandVertically(animationSpec = MarkMotion.sizeSpring()) + fadeIn(),
-            exit = shrinkVertically(animationSpec = MarkMotion.sizeSpring()) + fadeOut(),
+            enter = expandVertically(animationSpec = MarkMotion.sizeSpring()) +
+                fadeIn(animationSpec = MarkMotion.fadeSpec()),
+            exit = shrinkVertically(animationSpec = MarkMotion.sizeSpring()) +
+                fadeOut(animationSpec = MarkMotion.fadeSpec()),
         ) {
             Column {
                 VSpace(12)
                 SoftDivider()
                 VSpace(12)
-                sourceLines.forEach { line ->
+                closing.value.forEach { line ->
                     Text(
                         text = line,
                         style = MaterialTheme.typography.bodySmall,

@@ -47,11 +47,16 @@ class LiteRtInferenceEngine(
     @Volatile
     private var currentPath: String? = null
 
+    @Volatile
+    private var loadedContextTokens: Int = 0
+
     private val generationLock = Mutex()
 
     override val supportsVision: Boolean get() = visionEnabled
 
     override val loadedModelPath: String? get() = currentPath
+
+    override val contextTokens: Int get() = loadedContextTokens
 
     override fun isAvailable(): Boolean = true
 
@@ -66,9 +71,10 @@ class LiteRtInferenceEngine(
         generationLock.withLock {
             withContext(Dispatchers.IO) {
                 closeHandle()
+                val budget = totalTokenBudget(file.name)
                 val options = LlmInference.LlmInferenceOptions.builder()
                     .setModelPath(modelPath)
-                    .setMaxTokens(totalTokenBudget(file.name, params.maxTokens))
+                    .setMaxTokens(budget)
                     .setPreferredBackend(
                         if (params.useGpu) LlmInference.Backend.GPU else LlmInference.Backend.CPU
                     )
@@ -77,6 +83,7 @@ class LiteRtInferenceEngine(
                 inference = LlmInference.createFromOptions(context, options)
                 currentPath = modelPath
                 visionEnabled = withVision
+                loadedContextTokens = budget
             }
         }
     }
@@ -117,13 +124,27 @@ class LiteRtInferenceEngine(
                     }
                 }
 
+                // The callback runs on a native thread of MediaPipe's own. Anything
+                // thrown in here would come up on a thread nobody is watching and take
+                // the process down, so it never leaves this block.
                 created.generateResponseAsync { partial, done ->
-                    if (partial != null) {
-                        builder.append(partial)
-                        trySend(InferenceEvent.Token(partial))
-                    }
-                    if (done) {
-                        trySend(InferenceEvent.Completed(builder.toString().trim()))
+                    runCatching {
+                        if (partial != null) {
+                            builder.append(partial)
+                            trySend(InferenceEvent.Token(partial))
+                        }
+                        if (done) {
+                            val answer = builder.toString().trim()
+                            if (answer.isEmpty()) {
+                                trySend(InferenceEvent.Failed(EMPTY_ANSWER))
+                            } else {
+                                trySend(InferenceEvent.Completed(answer))
+                            }
+                            close()
+                        }
+                    }.onFailure { error ->
+                        Log.e(TAG, "Streaming failed", error)
+                        trySend(InferenceEvent.Failed(error.message ?: "Generation failed", error))
                         close()
                     }
                 }
@@ -150,7 +171,7 @@ class LiteRtInferenceEngine(
     }
 
     /**
-     * How many tokens the graph may be built for.
+     * How many tokens the graph is built for: all of them.
      *
      * A .task file is exported with a fixed KV cache, and asking for more than it was
      * built for fails at load with "Max number of tokens is larger than the maximum
@@ -159,13 +180,17 @@ class LiteRtInferenceEngine(
      * where it is read from. Anything unrecognised falls back to the smallest cache
      * in the catalogue, because guessing low costs a shorter answer and guessing high
      * costs the whole session.
+     *
+     * It used to be built for the answer budget plus some head room, which was the
+     * mistake behind half the blank answers. The handle is kept open across calls, so
+     * whichever job ran first fixed the size for every job after it: a 260 token
+     * summary at start-up left the chat with 772 tokens for a prompt that needed more,
+     * and the runtime answers an overlong prompt with an empty string. The cache is
+     * already paid for in memory the moment the model is loaded, so there is nothing
+     * to save by building it smaller.
      */
-    private fun totalTokenBudget(fileName: String, requestedAnswerTokens: Int): Int {
-        val cacheSize = KV_CACHE_PATTERN.find(fileName)?.groupValues?.get(1)?.toIntOrNull()
-            ?: DEFAULT_KV_CACHE
-        val wanted = requestedAnswerTokens + PROMPT_TOKEN_BUDGET
-        return wanted.coerceAtMost(cacheSize)
-    }
+    private fun totalTokenBudget(fileName: String): Int =
+        KV_CACHE_PATTERN.find(fileName)?.groupValues?.get(1)?.toIntOrNull() ?: DEFAULT_KV_CACHE
 
     private fun closeHandle() {
         runCatching { inference?.close() }
@@ -173,13 +198,11 @@ class LiteRtInferenceEngine(
         inference = null
         currentPath = null
         visionEnabled = false
+        loadedContextTokens = 0
     }
 
     private companion object {
         const val TAG = "LiteRtEngine"
-
-        /** Head room on top of the answer budget so a long prompt still fits. */
-        const val PROMPT_TOKEN_BUDGET = 512
 
         /** Matches the `ekv1280` marker every LiteRT export carries in its name. */
         val KV_CACHE_PATTERN = Regex("ekv(\\d+)", RegexOption.IGNORE_CASE)
@@ -188,5 +211,14 @@ class LiteRtInferenceEngine(
         const val DEFAULT_KV_CACHE = 1280
 
         const val MAX_IMAGES = 1
+
+        /**
+         * What the runtime hands back when the prompt filled the whole context: a
+         * finished generation with nothing in it. Saying that plainly beats an empty
+         * bubble the user has to guess at.
+         */
+        const val EMPTY_ANSWER =
+            "The model returned nothing. The question and its context were probably too " +
+                "long for this model. Ask something shorter, or switch off a source."
     }
 }

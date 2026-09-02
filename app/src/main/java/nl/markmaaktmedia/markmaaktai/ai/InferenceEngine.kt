@@ -47,6 +47,15 @@ interface InferenceEngine {
     /** Path of the model file currently held open, or null. */
     val loadedModelPath: String?
 
+    /**
+     * How many tokens the loaded graph holds in total, prompt and answer together.
+     *
+     * Zero when nothing is loaded. A caller that hands over a longer prompt than this
+     * gets an empty answer rather than an error, so every prompt is trimmed against
+     * it first.
+     */
+    val contextTokens: Int
+
     /** Whether this build can actually run the engine on this device. */
     fun isAvailable(): Boolean
 

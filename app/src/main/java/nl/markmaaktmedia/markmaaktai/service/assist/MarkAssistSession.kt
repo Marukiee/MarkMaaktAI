@@ -32,6 +32,8 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update
+import android.util.Log
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 import nl.markmaaktmedia.markmaaktai.MainActivity
 import nl.markmaaktmedia.markmaaktai.ai.InferenceEvent
@@ -354,31 +356,40 @@ class MarkAssistSession(context: Context) :
             }
 
             val builder = StringBuilder()
-            entryPoint.orchestrator().chat(
-                history = history,
-                question = question,
-                context = PromptContext(screenText = bestScreenText()),
-            ).collect { event ->
-                when (event) {
-                    is InferenceEvent.Token -> {
-                        builder.append(event.text)
-                        state.update { it.copy(answer = builder.toString()) }
+            try {
+                entryPoint.orchestrator().chat(
+                    history = history,
+                    question = question,
+                    context = PromptContext(screenText = bestScreenText()),
+                ).collect { event ->
+                    when (event) {
+                        is InferenceEvent.Token -> {
+                            builder.append(event.text)
+                            state.update { it.copy(answer = builder.toString()) }
+                        }
+
+                        is InferenceEvent.Completed ->
+                            state.update { it.copy(answer = event.text.ifBlank { builder.toString() }) }
+
+                        is InferenceEvent.Failed ->
+                            state.update { it.copy(error = event.message) }
+
+                        else -> Unit
                     }
-
-                    is InferenceEvent.Completed ->
-                        state.update { it.copy(answer = event.text.ifBlank { builder.toString() }) }
-
-                    is InferenceEvent.Failed ->
-                        state.update { it.copy(error = event.message) }
-
-                    else -> Unit
                 }
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (error: Throwable) {
+                // This runs in a window the system owns. An exception escaping here
+                // takes the whole assistant down with no dialog and no way back in.
+                Log.e(TAG, "Answering failed", error)
+                state.update { it.copy(error = error.message ?: "Something went wrong") }
+            } finally {
+                assistantMessageId?.let { id ->
+                    runCatching { chats.updateAssistantMessage(id, state.value.answer) }
+                }
+                state.update { it.copy(isAnswering = false) }
             }
-
-            assistantMessageId?.let { id ->
-                runCatching { chats.updateAssistantMessage(id, state.value.answer) }
-            }
-            state.update { it.copy(isAnswering = false) }
         }
     }
 
@@ -489,7 +500,9 @@ class MarkAssistSession(context: Context) :
         entryPoint.settings().settings.collectAsState(initial = UserSettings()).value
 
     private companion object {
+        const val TAG = "MarkAssistSession"
         const val MAX_TREE_DEPTH = 24
         const val MAX_STRUCTURE_CHARS = 6000
     }
+
 }

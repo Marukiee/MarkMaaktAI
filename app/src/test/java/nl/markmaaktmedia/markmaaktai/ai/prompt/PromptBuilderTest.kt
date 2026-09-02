@@ -30,7 +30,8 @@ class PromptBuilderTest {
             ),
         )
         assertTrue(with.contains("Web results:"))
-        assertTrue(with.contains("https://example.org"))
+        // The host is what reaches the model; the full URL is only used by the UI.
+        assertTrue(with.contains("example.org"))
     }
 
     @Test

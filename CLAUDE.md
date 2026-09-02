@@ -56,6 +56,14 @@ Dit is waar de app op beoordeeld wordt. Nooit op afknijpen.
   loopt zegt niets meer.
 - Navigatie heeft **één bewegende pill**, niet vier losse achtergronden. Hij rekt
   uit in de bewegingsrichting naar rato van de afstand.
+- Filters wisselen op dezelfde manier, met **één bewegende pill**
+  (`SegmentedPillRow`). Drie chips die elk verkleuren zijn drie dingen tegelijk en de
+  ogen moeten de nieuwe keuze gaan zoeken.
+- Een lijst die dichtklapt moet nog iets hebben om over dicht te vouwen. De bron-regels
+  van een melding worden bij het inklappen meteen gewist, dus onthoud de laatste set
+  tijdens de exit, anders klapt de kaart niet dicht maar knippert hij weg.
+- Zoeken terwijl je typt houdt de vorige resultaten staan. Ze eerst wissen betekent
+  resultaten, hele bibliotheek, resultaten: drie rasters in een derde seconde.
 - Licht/donker wisselt met een crossfade over alle kleurrollen (`ColorScheme.animated()`).
 - Pure black is echt `#000000` voor de achtergrond, maar containers houden een
   ladder van donkergrijs zodat diepte zichtbaar blijft.
@@ -155,8 +163,28 @@ Dit is waar de app op beoordeeld wordt. Nooit op afknijpen.
   Systeem-JDK is 25, daar draait AGP niet op.
 - **Tokenlimiet:** een `.task`-bestand heeft een vaste KV-cache, te lezen uit de
   bestandsnaam (`ekv1280`). Meer tokens vragen dan dat faalt bij het laden met
-  "Max number of tokens is larger than the maximum cache size". `maxTokens` altijd
-  klemmen op die waarde.
+  "Max number of tokens is larger than the maximum cache size". De graph wordt daarom
+  altijd op de volle cache gebouwd, nooit op `maxTokens`: de handle blijft open, dus
+  de eerste klus zette anders de maat voor alle volgende.
+- **Een te lange prompt geeft geen fout, maar een leeg antwoord.** Dat is de oorzaak
+  van vrijwel elk "hij doet niks". Prompt en antwoord delen die 1280 tokens, dus
+  `PromptBudget` meet de prompt vooraf en `PromptBuilder` knipt de context in volgorde
+  van waarde weg. Nooit context toevoegen zonder budget.
+- **Context is opt-in per vraag** (`QuestionRouter`). Alles overal bijplakken is hoe
+  "hoe hard gaat de Python in de Efteling" een melding over Python meekreeg en het
+  model er twee achtbanen van maakte. Wereldvraag krijgt het web, telefoonvraag krijgt
+  de telefoon, een samenvatting krijgt alles van de laatste dag (die heeft geen
+  zoekwoorden, dus FTS vindt niks en het antwoord bleef leeg).
+- **Alles rond een antwoord in een `try/catch`.** Een uitzondering in `viewModelScope`
+  of in de MediaPipe-callback is een crash zonder dialoog. De callback draait op een
+  native thread van MediaPipe zelf, dus die vangt niets voor je op.
+- **Het model mag spoed bevestigen, nooit bepalen** (`UrgencyRules`). Gevraagd of iets
+  spoed is zegt een 1.5B-model bijna altijd ja: het leest toon, geen gevolg. Een kaart
+  is spoed als het model ja zegt *en* er echt een reden in de tekst staat.
+- **Zoeken op screenshots gaat via `SearchVocabulary`.** Niemand typt wat er in de
+  screenshot staat. "Vliegtickets" staat in geen enkele instapkaart, daar staat gate,
+  vlucht en PNR. Woordenlijst, geen embeddings: kilobytes, microseconden, en één regel
+  om te corrigeren.
 - **Signing:** release-sleutel staat op `/home/Mark/keystores/markmaaktai-release.jks`,
   wachtwoord in `markmaaktai-release.password` ernaast, en dezelfde vier waarden staan
   als GitHub-secrets (`ANDROID_KEYSTORE_B64`, `ANDROID_KEYSTORE_PASSWORD`,

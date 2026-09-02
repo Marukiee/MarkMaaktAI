@@ -3,6 +3,7 @@ package nl.markmaaktmedia.markmaaktai.data.remote
 import android.util.Log
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonArray
@@ -57,33 +58,46 @@ class WebSearchClient @Inject constructor(
     ): SearchOutcome = withContext(Dispatchers.IO) {
         if (query.isBlank()) return@withContext SearchOutcome.Results(emptyList())
 
+        // The HTTP client is shared with the model downloader, so its read timeout is
+        // measured in minutes. A search that takes minutes is a search that failed,
+        // and the chat sitting on a spinner behind it reads as the app being broken.
+        withTimeoutOrNull(TIMEOUT_MILLIS) { searchAll(query, limit, searxngUrl, braveApiKey) }
+            ?: SearchOutcome.Failed("The search took too long and was given up on")
+    }
+
+    private fun searchAll(
+        query: String,
+        limit: Int,
+        searxngUrl: String,
+        braveApiKey: String,
+    ): SearchOutcome {
         val reasons = mutableListOf<String>()
 
         if (braveApiKey.isNotBlank()) {
             when (val brave = searchBrave(query, limit, braveApiKey)) {
-                is SearchOutcome.Results -> if (brave.sources.isNotEmpty()) return@withContext brave
+                is SearchOutcome.Results -> if (brave.sources.isNotEmpty()) return brave
                 is SearchOutcome.Failed -> reasons += "Brave: ${brave.reason}"
             }
         }
 
         if (searxngUrl.isNotBlank()) {
             when (val searx = searchSearxng(query, limit, searxngUrl)) {
-                is SearchOutcome.Results -> if (searx.sources.isNotEmpty()) return@withContext searx
+                is SearchOutcome.Results -> if (searx.sources.isNotEmpty()) return searx
                 is SearchOutcome.Failed -> reasons += "SearXNG: ${searx.reason}"
             }
         }
 
         when (val ddg = searchDuckDuckGo(query, limit)) {
-            is SearchOutcome.Results -> if (ddg.sources.isNotEmpty()) return@withContext ddg
+            is SearchOutcome.Results -> if (ddg.sources.isNotEmpty()) return ddg
             is SearchOutcome.Failed -> reasons += "DuckDuckGo: ${ddg.reason}"
         }
 
         when (val wiki = searchWikipedia(query, limit)) {
-            is SearchOutcome.Results -> if (wiki.sources.isNotEmpty()) return@withContext wiki
+            is SearchOutcome.Results -> if (wiki.sources.isNotEmpty()) return wiki
             is SearchOutcome.Failed -> reasons += "Wikipedia: ${wiki.reason}"
         }
 
-        SearchOutcome.Failed(
+        return SearchOutcome.Failed(
             reasons.joinToString("\n").ifBlank { "No search backend returned anything" }
         )
     }
@@ -120,7 +134,7 @@ class WebSearchClient @Inject constructor(
                 }
                 val html = response.body?.string().orEmpty()
 
-                val links = RESULT_BLOCK.findAll(html)
+                val links = resultBlocks(html)
                     .mapNotNull { match ->
                         val href = decodeRedirect(match.groupValues[1])
                         val title = match.groupValues[2].stripHtml().unescape()
@@ -142,6 +156,19 @@ class WebSearchClient @Inject constructor(
         }.getOrElse { error ->
             SearchOutcome.Failed(error.message ?: "Could not reach DuckDuckGo")
         }
+    }
+
+    /**
+     * Finds the result links, whichever markup came back.
+     *
+     * This is scraping, so the page is allowed to change under it and periodically
+     * does. Two shapes are tried before giving up, which is the difference between the
+     * feature quietly dying on a DuckDuckGo tweak and it falling through to the next
+     * backend the way it was meant to.
+     */
+    private fun resultBlocks(html: String): Sequence<MatchResult> {
+        val primary = RESULT_BLOCK.findAll(html)
+        return if (primary.any()) primary else RESULT_BLOCK_FALLBACK.findAll(html)
     }
 
     /** Result links are wrapped in a redirect, with the real target as a parameter. */
@@ -315,6 +342,9 @@ class WebSearchClient @Inject constructor(
 
     private companion object {
         const val TAG = "WebSearchClient"
+
+        /** Long enough for a slow instance, short enough that nobody waits on it. */
+        const val TIMEOUT_MILLIS = 15_000L
         const val USER_AGENT = "MarkMaaktAI/1.0 (Android)"
 
         /** DuckDuckGo serves a different page to anything that looks like a bot. */
@@ -325,6 +355,11 @@ class WebSearchClient @Inject constructor(
         val HTML_TAG = Regex("<[^>]*>")
         val RESULT_BLOCK = Regex(
             "<a rel=\"nofollow\" class=\"result__a\"[^>]*href=\"([^\"]+)\"[^>]*>(.*?)</a>",
+            RegexOption.DOT_MATCHES_ALL,
+        )
+        /** Any anchor pointing at DuckDuckGo's redirector is a result, whatever its class. */
+        val RESULT_BLOCK_FALLBACK = Regex(
+            "<a[^>]+href=\"(/l/\\?[^\"]*uddg=[^\"]+)\"[^>]*>(.*?)</a>",
             RegexOption.DOT_MATCHES_ALL,
         )
         val SNIPPET_BLOCK = Regex(

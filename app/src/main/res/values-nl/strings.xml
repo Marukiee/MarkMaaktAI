@@ -279,4 +279,8 @@
     <string name="settings_photo_place">Herken waar een foto gemaakt is</string>
     <string name="settings_photo_place_desc">Gebruikt de coordinaten die in de foto zitten</string>
     <string name="help_photo_place">Een foto die met een telefoon is gemaakt bewaart de precieze plek. Dit zet dat om in een plaatsnaam, zodat "waar is dit?" een echt antwoord krijgt in plaats van een gok. Alleen de coordinaten worden opgezocht, nooit de foto zelf, en alleen als een foto ze heeft. Android doet het opzoeken waar dat kan, anders OpenStreetMap.</string>
+    <plurals name="shots_results">
+        <item quantity="one">%d schermafbeelding</item>
+        <item quantity="other">%d schermafbeeldingen</item>
+    </plurals>
 </resources>

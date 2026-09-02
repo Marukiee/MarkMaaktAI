@@ -29,6 +29,8 @@ class LlamaCppInferenceEngine : InferenceEngine {
 
     override val loadedModelPath: String? = null
 
+    override val contextTokens: Int = 0
+
     override fun isAvailable(): Boolean = NATIVE_LIBRARY_PRESENT
 
     override suspend fun load(modelPath: String, params: InferenceParams, withVision: Boolean) {

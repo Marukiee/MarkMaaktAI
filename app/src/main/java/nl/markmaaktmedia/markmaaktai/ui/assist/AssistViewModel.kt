@@ -3,6 +3,8 @@ package nl.markmaaktmedia.markmaaktai.ui.assist
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import android.util.Log
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -11,6 +13,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import nl.markmaaktmedia.markmaaktai.ai.AiOrchestrator
 import nl.markmaaktmedia.markmaaktai.ai.InferenceEvent
+import nl.markmaaktmedia.markmaaktai.ai.prompt.PromptTurn
 import nl.markmaaktmedia.markmaaktai.ai.stt.SpeechEvent
 import nl.markmaaktmedia.markmaaktai.ai.stt.SpeechInputManager
 import javax.inject.Inject
@@ -31,6 +34,9 @@ class AssistViewModel @Inject constructor(
 
     private val _state = MutableStateFlow(AssistUiState())
     val state: StateFlow<AssistUiState> = _state.asStateFlow()
+
+    /** The exchange so far, so a follow-up knows what it is following up on. */
+    private val turns = mutableListOf<PromptTurn>()
 
     private var answerJob: Job? = null
     private var dictationJob: Job? = null
@@ -60,21 +66,41 @@ class AssistViewModel @Inject constructor(
                 it.copy(isAnswering = true, answer = "", askedQuestion = question, query = "", error = null)
             }
             val builder = StringBuilder()
-            orchestrator.chat(history = emptyList(), question = question).collect { event ->
-                when (event) {
-                    is InferenceEvent.Token -> {
-                        builder.append(event.text)
-                        _state.update { it.copy(answer = builder.toString()) }
+            // Carries the exchange so far, so a follow-up in the sheet is a follow-up
+            // and not a fresh question about nothing.
+            val history = turns.toList()
+            try {
+                orchestrator.chat(history = history, question = question).collect { event ->
+                    when (event) {
+                        is InferenceEvent.Token -> {
+                            builder.append(event.text)
+                            _state.update { it.copy(answer = builder.toString()) }
+                        }
+
+                        is InferenceEvent.Completed ->
+                            _state.update { it.copy(answer = event.text.ifBlank { builder.toString() }) }
+
+                        is InferenceEvent.Failed -> _state.update { it.copy(error = event.message) }
+                        else -> Unit
                     }
-
-                    is InferenceEvent.Completed ->
-                        _state.update { it.copy(answer = event.text.ifBlank { builder.toString() }) }
-
-                    is InferenceEvent.Failed -> _state.update { it.copy(error = event.message) }
-                    else -> Unit
                 }
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (error: Throwable) {
+                Log.e(TAG, "Answering failed", error)
+                _state.update { it.copy(error = error.message ?: "Something went wrong") }
+            } finally {
+                val answer = _state.value.answer
+                if (answer.isNotBlank()) {
+                    turns += PromptTurn(PromptTurn.Role.USER, question)
+                    turns += PromptTurn(PromptTurn.Role.ASSISTANT, answer)
+                    // Two exchanges of memory. The sheet is for a question and a
+                    // follow-up; anything longer belongs in the app, where the drag
+                    // handle puts it.
+                    while (turns.size > MAX_TURNS) turns.removeAt(0)
+                }
+                _state.update { it.copy(isAnswering = false) }
             }
-            _state.update { it.copy(isAnswering = false) }
         }
     }
 
@@ -106,6 +132,11 @@ class AssistViewModel @Inject constructor(
             }
             _state.update { it.copy(isListening = false) }
         }
+    }
+
+    private companion object {
+        const val TAG = "AssistViewModel"
+        const val MAX_TURNS = 4
     }
 
     override fun onCleared() {

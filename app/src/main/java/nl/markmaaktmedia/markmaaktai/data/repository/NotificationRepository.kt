@@ -69,9 +69,41 @@ class NotificationRepository @Inject constructor(
         return rows.map { it.asPromptLine() }
     }
 
-    suspend fun search(question: String, limit: Int = 30): List<CapturedNotificationEntity> {
-        val query = toMatchQuery(question) ?: return emptyList()
-        return runCatching { notificationDao.search(query, limit) }.getOrDefault(emptyList())
+    suspend fun search(question: String, limit: Int = 30): List<CapturedNotificationEntity> =
+        searchTerms(toTerms(question), limit)
+
+    /**
+     * Searches on terms someone else already picked out.
+     *
+     * The chat routes its questions through `QuestionRouter`, which knows which words
+     * carry the subject. Handing them straight over keeps one idea of what a question
+     * is about instead of two lists of stop words drifting apart.
+     *
+     * Everything that matched is then ranked by how many distinct terms it hit, and
+     * anything that only matched on a single short term is dropped. An OR search finds
+     * plenty; the point of this is deciding what is worth the context it would take up.
+     */
+    suspend fun searchTerms(
+        terms: List<String>,
+        limit: Int = 30,
+    ): List<CapturedNotificationEntity> {
+        if (terms.isEmpty()) return emptyList()
+        val match = terms.joinToString(" OR ") { "$it*" }
+        val rows = runCatching { notificationDao.search(match, limit * 3) }
+            .getOrDefault(emptyList())
+
+        return rows
+            .map { row -> row to row.hits(terms) }
+            .filter { (_, hits) -> hits.isNotEmpty() }
+            .filter { (_, hits) -> hits.size > 1 || hits.any { it.length >= STRONG_TERM } }
+            .sortedByDescending { (row, hits) -> hits.size * 1_000_000L + row.postedAt / 100_000L }
+            .take(limit)
+            .map { (row, _) -> row }
+    }
+
+    private fun CapturedNotificationEntity.hits(terms: List<String>): List<String> {
+        val haystack = (title + " " + body + " " + appLabel).lowercase()
+        return terms.filter { it in haystack }
     }
 
     suspend fun recent(limit: Int = 30, withinHours: Int = 24): List<CapturedNotificationEntity> {
@@ -106,22 +138,21 @@ class NotificationRepository @Inject constructor(
      * quotes are stripped: an unbalanced quote is a syntax error in MATCH, and a
      * crash on a question with an apostrophe in it would be a silly way to lose.
      */
-    private fun toMatchQuery(question: String): String? {
-        val words = question
-            .lowercase()
-            .split(NON_WORD)
-            .map { it.trim() }
-            .filter { it.length >= MIN_WORD_LENGTH && it !in stopWords }
-            .distinct()
-            .take(MAX_TERMS)
-        if (words.isEmpty()) return null
-        return words.joinToString(" OR ") { "$it*" }
-    }
+    private fun toTerms(question: String): List<String> = question
+        .lowercase()
+        .split(NON_WORD)
+        .map { it.trim() }
+        .filter { it.length >= MIN_WORD_LENGTH && it !in stopWords }
+        .distinct()
+        .take(MAX_TERMS)
 
     private companion object {
         val NON_WORD = Regex("[^\\p{L}\\p{Nd}]+")
         const val MIN_WORD_LENGTH = 3
         const val MAX_TERMS = 8
+
+        /** A term this long carries a subject on its own. Shorter ones need company. */
+        const val STRONG_TERM = 6
 
         val timeFormat = SimpleDateFormat("EEE HH:mm", Locale.getDefault())
 
