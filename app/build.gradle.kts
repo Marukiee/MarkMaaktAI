@@ -28,8 +28,8 @@ android {
         applicationId = "nl.markmaaktmedia.markmaaktai"
         minSdk = 31
         targetSdk = 36
-        versionCode = 20
-        versionName = "1.17.0"
+        versionCode = 21
+        versionName = "1.17.1"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables.useSupportLibrary = true

@@ -32,10 +32,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Constraints
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import nl.markmaaktmedia.markmaaktai.R
@@ -326,8 +329,8 @@ private fun SourceRow(sources: List<WebSource>, onOpenSource: (String) -> Unit) 
          */
         LazyRow(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
-            modifier = Modifier.padding(horizontal = (-16).dp),
-            contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 16.dp),
+            modifier = Modifier.bleedHorizontally(BubbleMargin),
+            contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = BubbleMargin),
         ) {
             items(sources) { source ->
                 Row(
@@ -390,3 +393,30 @@ private val UserBubbleShape = androidx.compose.foundation.shape.RoundedCornerSha
     bottomStart = 24.dp,
     bottomEnd = 8.dp,
 )
+
+/** The side margin the message column already sits in. */
+private val BubbleMargin = 16.dp
+
+/**
+ * Lets a row run past the margins its parent sits in.
+ *
+ * Compose has no negative padding, it throws, so the child is measured against
+ * wider constraints and then placed back over the margin by hand. The width this
+ * reports is still the parent's, so nothing around it moves.
+ */
+private fun Modifier.bleedHorizontally(amount: Dp) = layout { measurable, constraints ->
+    val extra = amount.roundToPx() * 2
+    val widened = constraints.copy(
+        minWidth = constraints.minWidth + extra,
+        maxWidth = if (constraints.maxWidth == Constraints.Infinity) {
+            Constraints.Infinity
+        } else {
+            constraints.maxWidth + extra
+        },
+    )
+    val placeable = measurable.measure(widened)
+    val width = (placeable.width - extra).coerceIn(constraints.minWidth, constraints.maxWidth)
+    layout(width, placeable.height) {
+        placeable.place(-amount.roundToPx(), 0)
+    }
+}

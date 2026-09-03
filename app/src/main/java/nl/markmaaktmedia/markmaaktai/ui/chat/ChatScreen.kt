@@ -10,6 +10,10 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.fadeIn
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.animation.shrinkHorizontally
+import androidx.compose.animation.expandHorizontally
 import androidx.compose.animation.togetherWith
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
@@ -130,6 +134,7 @@ fun ChatScreen(
                 ?: stringResource(R.string.chat_title),
             onOpenHistory = { historyOpen = true },
             onNewConversation = viewModel::newConversation,
+            showNewConversation = messages.isNotEmpty(),
         )
 
         // The transcript runs the full height and the composer floats over it, so a
@@ -294,6 +299,7 @@ private fun ChatTopBar(
     title: String,
     onOpenHistory: () -> Unit,
     onNewConversation: () -> Unit,
+    showNewConversation: Boolean,
 ) {
     Row(
         modifier = Modifier
@@ -318,12 +324,24 @@ private fun ChatTopBar(
                 .weight(1f)
                 .padding(horizontal = 4.dp),
         )
-        MarkIconButton(
-            icon = MarkIcons.NewChat,
-            contentDescription = stringResource(R.string.chat_new_conversation),
-            onClick = onNewConversation,
-            background = MaterialTheme.colorScheme.surfaceContainerHigh,
-        )
+        // An empty thread is already a new conversation, so the button that makes
+        // one has nothing to do and goes away instead of standing there inert.
+        AnimatedVisibility(
+            visible = showNewConversation,
+            enter = fadeIn(MarkMotion.fadeSpec()) +
+                scaleIn(MarkMotion.springy(), initialScale = 0.8f) +
+                expandHorizontally(MarkMotion.sizeSpring(), clip = false),
+            exit = fadeOut(MarkMotion.fadeSpec()) +
+                scaleOut(MarkMotion.springy(), targetScale = 0.8f) +
+                shrinkHorizontally(MarkMotion.sizeSpring(), clip = false),
+        ) {
+            MarkIconButton(
+                icon = MarkIcons.NewChat,
+                contentDescription = stringResource(R.string.chat_new_conversation),
+                onClick = onNewConversation,
+                background = MaterialTheme.colorScheme.surfaceContainerHigh,
+            )
+        }
     }
 }
 

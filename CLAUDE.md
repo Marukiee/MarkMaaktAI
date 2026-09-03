@@ -118,6 +118,10 @@ Dit is waar de app op beoordeeld wordt. Nooit op afknijpen.
 
 - `BoxWithConstraints.maxWidth` is de ruimte **na** de eigen modifiers. De padding er
   nog eens vanaf trekken maakt elk vak te smal en de fout stapelt op aan de rechterkant.
+- Compose kent **geen negatieve padding**. `padding(-16.dp)` gooit "Padding must be
+  non-negative" zodra het in beeld komt, niet bij het bouwen. Een rij die voorbij de
+  marge van zijn ouder moet lopen wordt gemeten op ruimere constraints en met de hand
+  teruggelegd (`bleedHorizontally`).
 - Een spraakmodel is een **map**, geen bestand. Het zip-archief wordt uitgepakt en
   weggegooid, dus zoeken op de bestandsnaam vindt niks en de knop blijft "downloaden"
   zeggen.
