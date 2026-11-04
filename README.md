@@ -1,168 +1,90 @@
 # MarkMaaktAI
 
 [![Release](https://img.shields.io/github/v/release/Marukiee/MarkMaaktAI?label=release)](https://github.com/Marukiee/MarkMaaktAI/releases/latest)
-[![Build](https://github.com/Marukiee/MarkMaaktAI/actions/workflows/release.yml/badge.svg)](https://github.com/Marukiee/MarkMaaktAI/actions/workflows/release.yml)
-[![Android](https://img.shields.io/badge/Android-12%2B-3DDC84?logo=android&logoColor=white)](#)
-[![Kotlin](https://img.shields.io/badge/Kotlin-2.1-7F52FF?logo=kotlin&logoColor=white)](#)
-[![Licentie](https://img.shields.io/badge/licentie-AGPL--3.0-blue)](#licentie)
+[![License](https://img.shields.io/badge/license-AGPL--3.0-blue)](LICENSE)
+[![Android](https://img.shields.io/badge/Android-12%2B-3DDC84?logo=android&logoColor=white)](#install)
 
-Een AI-assistent die volledig op je eigen telefoon draait. Chatten, foto's laten
-lezen, je screenshots doorzoekbaar maken en je meldingen tot rust brengen, zonder
-dat er iets naar een server gaat.
+English | [Nederlands](README.nl.md)
 
-Geen account, geen abonnement, geen Google Play Services. Je installeert de APK,
-tikt een keer op downloaden voor een taalmodel, en dat is het.
+**A local AI hub for Android.** Chat, read photos, make your screenshots searchable and calm down your notifications, without anything going to a server. No account, no subscription, no Google Play Services. You install the APK, tap once to download a language model, and that is it.
 
-## Wat het doet
+## What it does
 
-- 💬 **Chat die op je toestel blijft**. Het model draait lokaal via LiteRT, met
-  hardwareversnelling op een Snapdragon 8 Gen 3 of een Tensor G4. Gesprekken staan
-  in een database op je telefoon en nergens anders
-- 📸 **Foto's en documenten lezen**. Voeg een foto toe en stel er een vraag over.
-  Tekst wordt altijd uitgelezen met offline OCR, ook als je geen vision-model hebt
-  geïnstalleerd
-- 🔎 **Screenshots doorzoekbaar**, zoals Pixel Screenshots maar dan lokaal. Elke
-  screenshot wordt een keer gelezen, krijgt een titel en is daarna terug te vinden
-  op wat erin staat. De foto's zelf blijven in je galerij en worden nooit gekopieerd
-- 🔕 **Meldingen die tot bedaren komen**. Een reeks berichten wordt één rustige
-  samenvatting met actiepunten. Spoed krijgt een melding met knoppen voor een
-  antwoordvoorstel en voor de agenda
-- 🎙️ **Assistent via de aan-uitknop**. Stel MarkMaaktAI in als standaardassistent
-  en er verschijnt een zwevend paneel over de app waar je in zit, met een vraag over
-  wat er op je scherm staat
-- 🌐 **Webzoeken als je het wilt**. Eén schakelaar in de invoerbalk. Staat hij uit,
-  dan gaat er geen enkel pakketje naar buiten
-- 🎨 **Material You**. Het hele palet volgt je achtergrond, inclusief het app-icoon,
-  met een diepzwarte modus voor OLED-schermen
+- **Chat that stays on your phone.** The model runs locally through LiteRT, with hardware acceleration on a Snapdragon 8 Gen 3 or a Tensor G4. Conversations live in a database on your phone and nowhere else
+- **Reads photos and documents.** Add a photo and ask a question about it. Text is always read with offline OCR, also when you have no vision model installed
+- **Searchable screenshots**, like Pixel Screenshots but local. Every screenshot is read once, gets a title and can then be found by what is in it. The photos themselves stay in your gallery and are never copied
+- **Notifications that calm down.** A series of messages becomes one quiet summary with action points. Urgent ones get a notification with buttons for a suggested reply and for your calendar
+- **An assistant on the power button.** Set MarkMaaktAI as your default assistant and a floating panel appears over the app you are in, where you can ask about what is on your screen
+- **Web search when you want it.** One switch in the input bar. When it is off, no packet leaves your phone
+- **Material You.** The whole palette follows your wallpaper, the app icon included, with a pure black mode for OLED screens
 
-## Installeren
+## Install
 
-1. Pak `MarkMaaktAI.apk` uit de
-   [nieuwste release](https://github.com/Marukiee/MarkMaaktAI/releases/latest).
-   Ongeveer 63 MB, alleen arm64, dus elke telefoon van de laatste jaren
-2. Installeer hem (sta installeren uit onbekende bron toe)
-3. Tik bij het instellen op **Download Qwen 2.5 1.5B**. Ongeveer 1,5 GB, geen
-   account nodig, en daarna werkt alles offline
+You need Android 12 or newer.
 
-Heb je zelf al een `.task` of `.litertlm` bestand, kies dan **Ik heb al een
-modelbestand** en wijs het aan. De app kopieert het naar zijn eigen opslag.
+1. Download `MarkMaaktAI.apk` from the [latest release](https://github.com/Marukiee/MarkMaaktAI/releases/latest) on your phone. It is about 63 MB and arm64 only, so any phone of the last few years.
+2. Open it. Android asks once whether the app you open it with (your browser or files app) may install apps from unknown sources. Turn that on, go back and tap Install.
+3. When the app asks for a model, tap **Download Qwen 2.5 1.5B**. It is about 1.5 GB, needs no account, and after that everything works offline.
 
-De app blijft bruikbaar zonder model: screenshots en foto's worden dan met OCR
-gelezen, wat volledig zonder AI-model werkt.
+Already have a `.task` or `.litertlm` file? Choose **I already have a model file** and point to it. The app copies it to its own storage. The app also works without a model: screenshots and photos are then read with OCR, which needs no AI model.
 
-### Welke modellen
+You can also add the repository to [Obtainium](https://obtainium.imranr.dev). The app checks for updates at most once a day.
 
-Alleen modellen die zonder account of licentie-acceptatie downloaden. Gemma en Llama
-staan er bewust niet bij: die geven een 401 tenzij je ingelogd bij Hugging Face hun
-voorwaarden hebt aangeklikt, en dat is precies de drempel die deze app niet wil.
+### Which models
 
-| Model | Grootte | Waarvoor |
-|-------|---------|----------|
-| Qwen 2.5 1.5B | 1,5 GB | De aanbevolen keuze, goed in Nederlands |
-| Qwen 2.5 0.5B | 0,5 GB | Snel, prima voor samenvattingen |
-| DeepSeek R1 Distill 1.5B | 1,7 GB | Redeneert door, dus trager en grondiger |
-| SmolLM2 135M | 136 MB | Voor een telefoon met weinig ruimte |
-| FastVLM 0.5B | 1,1 GB | Beschrijft wat er op een foto staat |
-| Vosk NL of EN | 40 MB | Offline spraakherkenning |
+Only models that download without an account or licence acceptance. Gemma and Llama are left out on purpose: they return a 401 unless you are logged in to Hugging Face and have accepted their terms, which is exactly the barrier this app does not want.
 
-## Rechten en waarom
+| Model | Size | For |
+| --- | --- | --- |
+| Qwen 2.5 1.5B | 1.5 GB | The recommended choice, good at Dutch |
+| Qwen 2.5 0.5B | 0.5 GB | Fast, fine for summaries |
+| DeepSeek R1 Distill 1.5B | 1.7 GB | Reasons through it, so slower and more thorough |
+| SmolLM2 135M | 136 MB | For a phone with little space |
+| FastVLM 0.5B | 1.1 GB | Describes what is in a photo |
+| Vosk NL or EN | 40 MB | Offline speech recognition |
 
-| Recht | Waarvoor | Verplicht |
-|-------|----------|-----------|
-| `INTERNET` | Model downloaden, webzoeken, updatecontrole | Nee, alles blijft werken zonder |
-| Meldingstoegang | Berichten lezen om samen te vatten | Nee, alleen voor het overzicht |
-| `READ_MEDIA_IMAGES` | Screenshots inlezen | Nee, alleen voor de screenshots-tab |
-| `RECORD_AUDIO` | Inspreken | Nee |
-| `CAMERA` | Foto maken voor een vraag | Nee |
-| Batterijuitzondering | Meldingenlezer in leven houden | Nee, wel aangeraden |
+## Permissions and why
 
-## Draait op een schone telefoon
+| Permission | For | Required |
+| --- | --- | --- |
+| `INTERNET` | Downloading the model, web search, update check | No, everything keeps working without |
+| Notification access | Reading messages to summarise them | No, only for the overview |
+| `READ_MEDIA_IMAGES` | Reading screenshots | No, only for the screenshots tab |
+| `RECORD_AUDIO` | Dictating | No |
+| `CAMERA` | Taking a photo for a question | No |
+| Battery exemption | Keeping the notification reader alive | No, but recommended |
 
-Gebouwd en getest met GrapheneOS en de strengere Sony-builds in gedachten:
+## Runs on a clean phone
 
-- Geen enkele afhankelijkheid van Google Play Services. De tekstherkenning is de
-  gebundelde ML Kit-variant die het model in de APK meeneemt
-- Spraakherkenning gaat via Vosk, met de systeem-recognizer alleen als die er is
-- Alle netwerkverkeer is optioneel en zichtbaar: zoeken staat standaard uit,
-  downloads start je zelf, en de updatecontrole draait hooguit één keer per dag
-- De batterijuitzondering wordt gevraagd, niet afgedwongen, want zonder is alleen
-  het achtergronddeel minder betrouwbaar
+Built and tested with GrapheneOS and the stricter Sony builds in mind:
 
-## Architectuur
+- No dependency on Google Play Services. Text recognition is the bundled ML Kit variant that carries its model in the APK
+- Speech recognition goes through Vosk, with the system recogniser only when there is one
+- All network traffic is optional and visible: search is off by default, downloads start when you say so, and the update check runs at most once a day
+- The battery exemption is asked for, not forced, because without it only the background part is less reliable
 
-```
-  UI (Jetpack Compose, Material 3)
-  chat  screenshots  overzicht  instellingen  assistent-overlay
-        |
-  ViewModels (MVVM, Hilt)
-        |
-  +-----+---------------------------+
-  |                                 |
-  Repositories                      AiOrchestrator
-  chat, meldingen, screenshots,     kiest model per taak
-  modellen, updates                        |
-  |                                 InferenceEngine
-  Room + FTS4     DataStore         +-------+--------+
-  gesprekken      instellingen      LiteRT          llama.cpp
-  meldingen                         (nu actief)     (stub)
-  screenshots
-        |
-  Achtergrond (WorkManager)
-  meldingen samenvatten, screenshots indexeren
-```
+## Build
 
-Het hele AI-deel zit achter één interface. LiteRT draait vandaag, de llama.cpp-laag
-staat er als stub achter dezelfde interface, zodat overstappen op GGUF later één
-binding in `AppModule` is en verder niets.
-
-## Zelf bouwen
-
-Nodig: JDK 21 en de Android SDK met platform 36.
+You need JDK 21 and the Android SDK with platform 36.
 
 ```bash
 git clone https://github.com/Marukiee/MarkMaaktAI.git && cd MarkMaaktAI
 ./gradlew assembleDebug
 ```
 
-De APK komt in `app/build/outputs/apk/debug/`. De build levert alleen arm64: de
-AI-runtime, de tekstherkenning en Vosk hebben elk een eigen native library per
-architectuur, en x86 meenemen voor de emulator maakt de download drie keer zo groot
-voor hardware waar niemand dit op draait.
+The APK ends up in `app/build/outputs/apk/debug/`. The build only produces arm64: the AI runtime, the text recognition and Vosk each have their own native library per architecture, and adding x86 for the emulator makes the download three times as big for hardware nobody runs this on.
 
-Voor een getekende release maak je een `keystore.properties` in de root:
+For a signed release, create a `keystore.properties` in the root:
 
 ```properties
-storeFile=/pad/naar/release.jks
+storeFile=/path/to/release.jks
 storePassword=...
 keyAlias=...
 keyPassword=...
 ```
 
-Zonder dat bestand valt `assembleRelease` terug op debug-signing, zodat de build
-nooit stukloopt op een ontbrekende sleutel.
+Without that file `assembleRelease` falls back to debug signing, so the build never breaks on a missing key. Every tag that starts with `v` builds a release and attaches the APK. More on how the app is put together is in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
-Elke tag die met `v` begint bouwt automatisch een release en hangt de APK eraan.
+## License
 
-## Screenshots
-
-_Volgen zodra de eerste build op een toestel staat._
-
-| Chat | Screenshots | Overzicht | Assistent |
-|------|-------------|-----------|-----------|
-| ![Chat](docs/screenshots/chat.png) | ![Screenshots](docs/screenshots/shots.png) | ![Overzicht](docs/screenshots/digest.png) | ![Assistent](docs/screenshots/assist.png) |
-
-## Techniek
-
-| Laag | Gebruikt |
-|------|----------|
-| UI | Jetpack Compose · Material 3 · eigen squircle- en springlaag |
-| Architectuur | MVVM · Hilt · Coroutines en Flow |
-| Opslag | Room met FTS4 · DataStore |
-| AI | LiteRT (MediaPipe GenAI) · ML Kit bundled OCR · Vosk |
-| Achtergrond | WorkManager · NotificationListenerService |
-| Assistent | VoiceInteractionService met schermcontext |
-| Uitrollen | GitHub Actions · in-app updatecontrole |
-
-## Licentie
-
-AGPL-3.0
+AGPL-3.0, see [LICENSE](LICENSE). Made by Mark Maakt Media.
