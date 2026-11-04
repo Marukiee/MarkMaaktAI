@@ -91,8 +91,9 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.ref_name }}
-          name: MarkMaaktAI ${{ github.ref_name }}
-          generate_release_notes: true
+          name: MarkMaaktAI ${{ steps.stage.outputs.version }}
+          body: |
+            Install `MarkMaaktAI-v${{ steps.stage.outputs.version }}.apk` on your phone. `MarkMaaktAI.apk` is the same file under the name the app uses to update itself.
           make_latest: true
           files: |
             ${{ runner.temp }}/MarkMaaktAI-v${{ steps.stage.outputs.version }}.apk
